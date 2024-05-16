@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+// Importing the ERC20 contract from the OpenZeppelin library. ERC20 is a standard interface for tokens.
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+// Importing the ERC20Burnable contract from the OpenZeppelin library. This allows tokens to be destroyed by their owners.
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+// Importing the Ownable contract from the OpenZeppelin library. This provides basic authorization control functions.
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+// Declaring a new contract called FeeToken that extends the ERC20, ERC20Burnable, and Ownable contracts.
+contract FeeToken is ERC20, ERC20Burnable, Ownable {
+
+    // Declaring a public state variable feePercentage of type uint256 and initializing it to 10.
+    uint256 public feePercentage = 10; // 0.1% fee
+
+    // Declaring a public state variable rewardPool of type address.
+    address public rewardPool;
+
+    // Declaring an event that will be emitted when a fee is taken.
+    event FeeTaken(address indexed from, address indexed to, uint256 amount, uint256 fee);
+
+    // Defining the constructor function that initializes the contract.
+    constructor(string memory name, string memory symbol, address _rewardPool) ERC20(name, symbol) {
+
+        // Setting the rewardPool state variable to the value of the _rewardPool parameter.
+        rewardPool = _rewardPool;
+    }
+
+    // Defining a function that allows the contract owner to set the feePercentage state variable.
+    function setFeePercentage(uint256 _feePercentage) external onlyOwner {
+
+        // Setting the feePercentage state variable to the value of the _feePercentage parameter.
+        feePercentage = _feePercentage;
+    }
+
+    // Defining a function that allows the contract owner to set the rewardPool state variable.
+    function setRewardPool(address _rewardPool) external onlyOwner {
+
+        // Setting the rewardPool state variable to the value of the _rewardPool parameter.
+        rewardPool = _rewardPool;
+    }
+
+    // Overriding the _transfer function from the ERC20 contract to include a fee.
+    function _transfer(address sender, address recipient, uint256 amount) internal override {
+
+        // Calculating the fee as a percentage of the amount being transferred.
+        uint256 fee = (amount * feePercentage) / 10000;
+
+        // Calculating the amount to be transferred after subtracting the fee.
+        uint256 amountAfterFee = amount - fee;
+
+        // Calling the original _transfer function to transfer the fee to the reward pool.
+        super._transfer(sender, rewardPool, fee);
+        super._transfer(sender, recipient, amountAfterFee);
+
+        emit FeeTaken(sender, recipient, amount, fee);
+    }
+}
