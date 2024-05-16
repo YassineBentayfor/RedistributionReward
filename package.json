@@ -2,7 +2,6 @@
   "name": "rewardsystem",
   "version": "1.0.0",
   "main": "index.js",
-  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,6 +10,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.2",
+    "@ethersproject/wallet": "^5.7.0",
     "@hashgraph/sdk": "^2.45.0",
     "dotenv": "^16.4.5",
     "node-fetch": "^3.3.2"
