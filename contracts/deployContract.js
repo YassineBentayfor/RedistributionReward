@@ -29,7 +29,9 @@ async function main() {
   }
 
   const accountId = process.env.ACCOUNT_ID;
-  const accountKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
+  const accountKey = PrivateKey.fromStringECDSA(
+    process.env.ACCOUNT_PRIVATE_KEY
+  );
 
   // Initialize Hedera client
   const client = Client.forTestnet();
@@ -98,9 +100,9 @@ async function main() {
 
   // Output results
   const accountHexAddress = hederaToHexAddress(accountId);
-  const accountExplorerUrl = `https://hashscan.io/testnet/address/${accountId}`;
-  const feeTokenExplorerUrl = `https://hashscan.io/testnet/address/${feeTokenAddress}`;
-  const rewardDistributionExplorerUrl = `https://hashscan.io/testnet/address/${rewardDistributionAddress}`;
+  const accountExplorerUrl = `https://hashscan.io/testnet/account/${accountId}/?ph=1&pt=1`;
+  const feeTokenExplorerUrl = `https://hashscan.io/testnet/contract/${feeTokenAddress}`;
+  const rewardDistributionExplorerUrl = `https://hashscan.io/testnet/contract/${rewardDistributionAddress}`;
 
   console.log(`accountId: ${accountId}`);
   console.log(`accountAddress: ${accountHexAddress}`);
