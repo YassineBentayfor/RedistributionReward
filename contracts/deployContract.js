@@ -40,7 +40,7 @@ async function main() {
   client.setOperator(accountId, accountKey); // Set the operator account ID and private key
 
   // Convert Hedera addresses to Ethereum-style addresses
-  const mstTokenHexAddress = hederaToHexAddress(process.env.MST_TOKEN_ADDRESS); // Convert MST token address to hex
+  const mptTokenHexAddress = hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS); // Convert MPT token address to hex
   const feeRecipientHexAddress = hederaToHexAddress(process.env.FEE_RECIPIENT); // Convert fee recipient address to hex
 
   // Deploy FeeToken contract
@@ -57,7 +57,7 @@ async function main() {
     .setConstructorParameters(
       // Set constructor parameters
       new ContractFunctionParameters()
-        .addAddress(mstTokenHexAddress) // Add MST token address
+        .addAddress(mptTokenHexAddress) // Add MPT token address
         .addAddress(feeRecipientHexAddress) // Add fee recipient address
     );
 
