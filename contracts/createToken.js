@@ -13,7 +13,7 @@ const {
 
 // Configure accounts and client, and generate needed keys
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
-const operatorKey = PrivateKey.fromString(process.env.ACCOUNT_PRIVATE_KEY);
+const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
 const treasuryId = operatorId;
 const treasuryKey = operatorKey;
 

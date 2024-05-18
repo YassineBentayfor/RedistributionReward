@@ -7,7 +7,7 @@ interface IHederaTokenService {
 
 contract FeeToken {
     address public rewardPool;
-    uint256 public feePercentage = 10; // 0.1% fee
+    uint256 public feePercentage = 10; // 0.1% fee dvided by 10000
     address public tokenAddress;
 
     event FeeTaken(address indexed from, address indexed to, uint256 amount, uint256 fee);
