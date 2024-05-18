@@ -2,6 +2,7 @@ console.clear();
 require("dotenv").config();
 const {
   Client,
+  CustomFractionalFee,
   PrivateKey,
   AccountId,
   TokenCreateTransaction,
@@ -21,15 +22,21 @@ const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
 const supplyKey = PrivateKey.generate();
 
-async function createToken(tokenName, tokenSymbol) {
+async function createToken(tokenName, tokenSymbol, feeNom, feeDenom) {
   try {
+    // Create a custom fee for the token
+    const customFee = new CustomFractionalFee()
+      .setNumerator(feeNom)
+      .setDenominator(feeDenom)
+      .setFeeCollectorAccountId(treasuryId);
     // Create the token
     let tokenCreateTx = await new TokenCreateTransaction()
       .setTokenType(TokenType.FungibleCommon)
       .setTokenName(tokenName)
       .setTokenSymbol(tokenSymbol)
-      .setDecimals(2)
-      .setInitialSupply(10000)
+      .setDecimals(4)
+      .setInitialSupply(10_000)
+      .setCustomFees([customFee])
       .setTreasuryAccountId(treasuryId)
       .setSupplyType(TokenSupplyType.Infinite)
       .setSupplyKey(supplyKey)
@@ -47,7 +54,7 @@ async function createToken(tokenName, tokenSymbol) {
     );
 
     // Get the token ID
-    const tokenId = tokenCreateTxReceipt.tokenId;
+    const tokenId = tokenCreateTxReceipt.tokenId.toString();
 
     // Log the created token ID
     console.log(`- Created token with ID: ${tokenId}`);
@@ -85,11 +92,21 @@ async function main() {
     }
 
     // Create Mintable Staking Token (MST)
-    const mstTokenId = await createToken("Mintable Staking Token", "MST");
+    const mstTokenId = await createToken(
+      "Mintable Staking Token",
+      "MST",
+      1,
+      100
+    );
     console.log(`- Created MST token with ID: ${mstTokenId} \n`);
 
     // Create Mintable Payment Token (MPT)
-    const mptTokenId = await createToken("Mintable Payment Token", "MPT");
+    const mptTokenId = await createToken(
+      "Mintable Payment Token",
+      "MPT",
+      1,
+      100
+    );
     console.log(`- Created MPT token with ID: ${mptTokenId} \n`);
 
     // URLs for tokens
