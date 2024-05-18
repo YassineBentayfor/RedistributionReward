@@ -40,6 +40,7 @@ async function createToken(tokenName, tokenSymbol, feeNom, feeDenom) {
       .setTreasuryAccountId(treasuryId)
       .setSupplyType(TokenSupplyType.Infinite)
       .setSupplyKey(supplyKey)
+      .setAdminKey(operatorKey)
       .freezeWith(client);
 
     // Sign the transaction
