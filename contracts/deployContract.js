@@ -41,39 +41,14 @@ async function main() {
 
   // Convert Hedera addresses to Ethereum-style addresses
   const mptTokenHexAddress = hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS); // Convert MPT token address to hex
-  const feeRecipientHexAddress = hederaToHexAddress(process.env.FEE_RECIPIENT); // Convert fee recipient address to hex
-
-  // Deploy FeeToken contract
-  const feeTokenAbi = await fs.readFile("./output/FeeToken_FeeToken.abi", {
-    encoding: "utf8",
-  }); // Read ABI file for FeeToken contract
-  const feeTokenBytecode = await fs.readFile("./output/FeeToken_FeeToken.bin", {
-    encoding: "utf8",
-  }); // Read bytecode file for FeeToken contract
-
-  const feeTokenCreateTx = new ContractCreateFlow() // Create a new contract creation transaction
-    .setGas(1000000) // Set gas limit
-    .setBytecode(feeTokenBytecode) // Set contract bytecode
-    .setConstructorParameters(
-      // Set constructor parameters
-      new ContractFunctionParameters()
-        .addAddress(mptTokenHexAddress) // Add MPT token address
-        .addAddress(feeRecipientHexAddress) // Add fee recipient address
-    );
-
-  const feeTokenSubmit = await feeTokenCreateTx.execute(client); // Execute the transaction
-  const feeTokenReceipt = await feeTokenSubmit.getReceipt(client); // Get the receipt of the transaction
-  const feeTokenAddress = feeTokenReceipt.contractId.toString(); // Get the contract ID as a string
-
-  console.log(`- FeeToken contract deployed at: ${feeTokenAddress}`); // Log the FeeToken contract address
 
   // Deploy RewardDistribution contract
   const rewardDistributionAbi = await fs.readFile(
-    "./output/RewardDistribution_sol_RewardDistribution.abi",
+    "./output/RewardDis_sol_RewardDistribution.abi",
     { encoding: "utf8" }
   ); // Read ABI file for RewardDistribution contract
   const rewardDistributionBytecode = await fs.readFile(
-    "./output/RewardDistribution_sol_RewardDistribution.bin",
+    "./output/RewardDis_sol_RewardDistribution.bin",
     { encoding: "utf8" }
   ); // Read bytecode file for RewardDistribution contract
 
@@ -85,8 +60,6 @@ async function main() {
       new ContractFunctionParameters()
         .addAddress(hederaToHexAddress(process.env.MST_TOKEN_ADDRESS)) // Add MST token address
         .addAddress(hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS)) // Add MPT token address
-        .addAddress(feeRecipientHexAddress) // Add fee recipient address
-        .addUint256(10) // Add fee percentage
     );
 
   const rewardDistributionSubmit = await rewardDistributionCreateTx.execute(
