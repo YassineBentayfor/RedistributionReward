@@ -24,9 +24,11 @@ contract RewardDistribution is HederaTokenService {
     event RewardAdded(uint64 amount);
     event TransactionProcessed(address indexed sender, uint64 amount, uint64 fee);
 
-    constructor(address _mstTokenAddress, address _mptTokenAddress) {
+    constructor(address _mstTokenAddress, address _mptTokenAddress, address _feeRecipient, uint64 _feePercentage) {
         mstTokenAddress = _mstTokenAddress;
         mptTokenAddress = _mptTokenAddress;
+        feeRecipient = _feeRecipient;
+        feePercentage = _feePercentage;
     }
 
     function stakeTokens(uint64 amount) external {
@@ -116,7 +118,9 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function mintTokens(address token, uint64 amount) external {
-        (int response, , ) = HederaTokenService.mintToken(token, int64(amount), new bytes[](0));
+        bytes[] memory data = new bytes[](1);
+        data[0] = new bytes(amount);
+        (int response, , ) = HederaTokenService.mintToken(token, int64(amount), data);
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Mint Failed");
         }
