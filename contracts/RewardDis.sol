@@ -24,11 +24,9 @@ contract RewardDistribution is HederaTokenService {
     event RewardAdded(uint64 amount);
     event TransactionProcessed(address indexed sender, uint64 amount, uint64 fee);
 
-    constructor(address _mstTokenAddress, address _mptTokenAddress, address _feeRecipient, uint64 _feePercentage) {
+    constructor(address _mstTokenAddress, address _mptTokenAddress) {
         mstTokenAddress = _mstTokenAddress;
         mptTokenAddress = _mptTokenAddress;
-        feeRecipient = _feeRecipient;
-        feePercentage = _feePercentage;
     }
 
     function stakeTokens(uint64 amount) external {
