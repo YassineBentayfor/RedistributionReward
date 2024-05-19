@@ -4,84 +4,161 @@ const {
   Client,
   AccountId,
   PrivateKey,
-  FileCreateTransaction,
-  FileAppendTransaction,
-  ContractCreateTransaction,
-  ContractFunctionParameters,
-  TokenUpdateTransaction,
   ContractExecuteTransaction,
+  ContractFunctionParameters,
+  AccountBalanceQuery,
+  Hbar,
+  ContractId,
 } = require("@hashgraph/sdk");
-const fs = require("fs").promises;
-const axios = require("axios");
 
-function hederaToHexAddress(hederaAddress) {
-  const [shard, realm, num] = hederaAddress.split(".").map(Number);
-  const buf = Buffer.alloc(20);
-  buf.writeUInt32BE(shard, 0);
-  buf.writeUInt32BE(realm, 4);
-  buf.writeUInt32BE(num, 8);
-  return "0x" + buf.toString("hex").padStart(40, "0");
-}
-
+// Load environment variables
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
 const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
+const treasuryId = AccountId.fromString(process.env.TREASURY_ADDRESS);
+const treasuryKey = PrivateKey.fromStringECDSA(process.env.TREASURY_PVKEY);
 const account2Id = AccountId.fromString(process.env.ACCOUNT2_ID);
 const account2Key = PrivateKey.fromStringECDSA(
   process.env.ACCOUNT2_PRIVATE_KEY
 );
-const contractId = AccountId.fromString(
+const mstTokenAddress = process.env.MST_TOKEN_ADDRESS;
+const mptTokenAddress = process.env.MPT_TOKEN_ADDRESS;
+const contractId = ContractId.fromString(
   process.env.REWARD_DISTRIBUTION_CONTRACT_ID
 );
-const mstToken = AccountId.fromString(process.env.MST_TOKEN_ID);
-const mptToken = AccountId.fromString(process.env.MPT_TOKEN_ID);
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
-async function queryAccountBalance(accountId) {
-  try {
-    const response = await axios.get(
-      `https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`
-    );
-    console.log(`Balance for account ${accountId}:`, response.data.balance);
-  } catch (error) {
-    console.error(`Failed to query balance for account ${accountId}:`, error);
-  }
-}
-
 async function main() {
-  console.log(`Step 1: Token Association`);
-
   try {
-    const associateTx = await new ContractExecuteTransaction()
+    // STEP 1: Token Association
+    console.log(`STEP 1: Token Association`);
+
+    let tx = await new ContractExecuteTransaction()
       .setContractId(contractId)
-      .setGas(1000000)
+      .setGas(3000000)
       .setFunction(
         "tokenAssociate",
         new ContractFunctionParameters()
           .addAddress(account2Id.toSolidityAddress())
-          .addAddressArray([
-            mstToken.toSolidityAddress(),
-            mptToken.toSolidityAddress(),
-          ])
+          .addAddress(mstTokenAddress)
+          .addAddress(mptTokenAddress)
       )
+      .freezeWith(client);
+    tx = await tx.sign(account2Key);
+    let submitTx = await tx.execute(client);
+    let receipt = await submitTx.getReceipt(client);
 
-      .freezeWith(client)
-      .sign(operatorKey);
-
-    const associateResponse = await associateTx.execute(client);
-    const associateReceipt = await associateResponse.getReceipt(client);
     console.log(
-      "Token association status:",
-      associateReceipt.status.toString()
+      `- Token association with Account2: ${receipt.status.toString()}`
     );
 
-    await queryAccountBalance(account2Id.toString());
+    // STEP 2: Token Transfer
+    console.log(`STEP 2: Token Transfer`);
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "processTransaction",
+        new ContractFunctionParameters()
+          .addUint64(4000)
+          .addAddress(account2Id.toSolidityAddress())
+          .addAddress(mstTokenAddress)
+      );
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(
+      `- Transferred 4000 MST to Account2: ${receipt.status.toString()}`
+    );
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "processTransaction",
+        new ContractFunctionParameters()
+          .addUint64(4000)
+          .addAddress(account2Id.toSolidityAddress())
+          .addAddress(mptTokenAddress)
+      );
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(
+      `- Transferred 4000 MPT to Account2: ${receipt.status.toString()}`
+    );
+
+    // STEP 3: Fee Component
+    console.log(`STEP 3: Fee Component`);
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "processTransaction",
+        new ContractFunctionParameters()
+          .addUint64(2000)
+          .addAddress(treasuryId.toSolidityAddress())
+          .addAddress(mptTokenAddress)
+      );
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(
+      `- Transferred 2000 MPT to Treasury: ${receipt.status.toString()}`
+    );
+
+    // Check Treasury Balance
+    let balance = await new AccountBalanceQuery()
+      .setAccountId(treasuryId)
+      .execute(client);
+    console.log(
+      `- Treasury balance: ${balance.tokens._map.get(mptTokenAddress)} MPT`
+    );
+
+    // STEP 4: Staking
+    console.log(`STEP 4: Staking`);
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "stakeTokens",
+        new ContractFunctionParameters().addUint64(4000)
+      );
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(
+      `- Staked 4000 MST from Account2: ${receipt.status.toString()}`
+    );
+
+    // STEP 5: Claim Rewards
+    console.log(`STEP 5: Claim Rewards`);
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction("claimRewards");
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(`- Claimed rewards: ${receipt.status.toString()}`);
+
+    // STEP 6: Unstaking
+    console.log(`STEP 6: Unstaking`);
+
+    tx = await new ContractExecuteTransaction()
+      .setContractId(contractId)
+      .setGas(3000000)
+      .setFunction(
+        "unstakeTokens",
+        new ContractFunctionParameters().addUint64(4000)
+      );
+    submitTx = await tx.execute(client);
+    receipt = await submitTx.getReceipt(client);
+    console.log(
+      `- Unstaked 4000 MST from Account2: ${receipt.status.toString()}`
+    );
   } catch (error) {
-    console.error("Token Association Error:", error);
+    console.error("Error in main function:", error);
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main();
