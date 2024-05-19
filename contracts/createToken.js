@@ -12,7 +12,7 @@ const {
   TokenInfoQuery,
 } = require("@hashgraph/sdk");
 
-// Configure accounts and client, and generate needed keys
+// Configure accounts and client
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
 const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
 const treasuryId = operatorId;
@@ -22,18 +22,67 @@ const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
 const supplyKey = PrivateKey.generate();
 
-async function createToken(tokenName, tokenSymbol, feeNom, feeDenom) {
+async function main() {
   try {
-    // Create a custom fee for the token
-    const customFee = new CustomFractionalFee()
-      .setNumerator(feeNom)
-      .setDenominator(feeDenom)
-      .setFeeCollectorAccountId(treasuryId);
-    // Create the token
-    let tokenCreateTx = await new TokenCreateTransaction()
+    // Ensure required environment variables are available
+    if (!process.env.ACCOUNT_ID || !process.env.ACCOUNT_PRIVATE_KEY) {
+      throw new Error("Please set required keys in .env file.");
+    }
+
+    // Create Mintable Staking Token (MST) without any fee
+    console.log(`Creating Mintable Staking Token (MST) without any fee...`);
+    let mstTokenCreateTx = await new TokenCreateTransaction()
       .setTokenType(TokenType.FungibleCommon)
-      .setTokenName(tokenName)
-      .setTokenSymbol(tokenSymbol)
+      .setTokenName("Mintable Staking Token")
+      .setTokenSymbol("MST")
+      .setDecimals(4)
+      .setInitialSupply(10_000)
+      .setTreasuryAccountId(treasuryId)
+      .setSupplyType(TokenSupplyType.Infinite)
+      .setSupplyKey(supplyKey)
+      .setAdminKey(operatorKey)
+      .freezeWith(client);
+
+    // Sign the MST token creation transaction
+    let mstTokenCreateTxSigned = await mstTokenCreateTx.sign(treasuryKey);
+
+    // Submit the MST token creation transaction
+    let mstTokenCreateTxSubmitted = await mstTokenCreateTxSigned.execute(
+      client
+    );
+
+    // Get the receipt of the MST token creation transaction
+    let mstTokenCreateTxReceipt = await mstTokenCreateTxSubmitted.getReceipt(
+      client
+    );
+
+    // Get the MST token ID
+    let mstTokenId = mstTokenCreateTxReceipt.tokenId.toString();
+    console.log(`- Created MST token with ID: ${mstTokenId}`);
+
+    // Query the MST token info
+    try {
+      const mstTokenInfo = await new TokenInfoQuery()
+        .setTokenId(mstTokenId)
+        .execute(client);
+      console.log(
+        `The token info for MST is: ${JSON.stringify(mstTokenInfo, null, 2)}`
+      );
+    } catch (mstTokenInfoError) {
+      console.error(`Error querying token info for MST:`, mstTokenInfoError);
+    }
+
+    // Create Mintable Payment Token (MPT) with a 1% fee
+    console.log(`Creating Mintable Payment Token (MPT) with a 1% fee...`);
+    const customFee = new CustomFractionalFee()
+      .setNumerator(1)
+      .setDenominator(10)
+      .setFeeCollectorAccountId(treasuryId);
+
+    let mptTokenCreateTx = await new TokenCreateTransaction()
+      .setTokenType(TokenType.FungibleCommon)
+      .setTokenName("Mintable Payment Token")
+      .setTokenSymbol("MPT")
       .setDecimals(4)
       .setInitialSupply(10_000)
       .setCustomFees([customFee])
@@ -43,72 +92,34 @@ async function createToken(tokenName, tokenSymbol, feeNom, feeDenom) {
       .setAdminKey(operatorKey)
       .freezeWith(client);
 
-    // Sign the transaction
-    const tokenCreateTxSigned = await tokenCreateTx.sign(treasuryKey);
+    // Sign the MPT token creation transaction
+    let mptTokenCreateTxSigned = await mptTokenCreateTx.sign(treasuryKey);
 
-    // Submit the transaction
-    const tokenCreateTxSubmitted = await tokenCreateTxSigned.execute(client);
-
-    // Get the receipt of the transaction
-    const tokenCreateTxReceipt = await tokenCreateTxSubmitted.getReceipt(
+    // Submit the MPT token creation transaction
+    let mptTokenCreateTxSubmitted = await mptTokenCreateTxSigned.execute(
       client
     );
 
-    // Get the token ID
-    const tokenId = tokenCreateTxReceipt.tokenId.toString();
+    // Get the receipt of the MPT token creation transaction
+    let mptTokenCreateTxReceipt = await mptTokenCreateTxSubmitted.getReceipt(
+      client
+    );
 
-    // Log the created token ID
-    console.log(`- Created token with ID: ${tokenId}`);
+    // Get the MPT token ID
+    let mptTokenId = mptTokenCreateTxReceipt.tokenId.toString();
+    console.log(`- Created MPT token with ID: ${mptTokenId}`);
 
-    // Query the token info using TokenInfoQuery
+    // Query the MPT token info
     try {
-      const tokenInfo = await new TokenInfoQuery()
-        .setTokenId(tokenId)
+      const mptTokenInfo = await new TokenInfoQuery()
+        .setTokenId(mptTokenId)
         .execute(client);
       console.log(
-        `The token info for ${tokenName} is: ${JSON.stringify(
-          tokenInfo,
-          null,
-          2
-        )}`
+        `The token info for MPT is: ${JSON.stringify(mptTokenInfo, null, 2)}`
       );
-    } catch (tokenInfoError) {
-      console.error(
-        `Error querying token info for ${tokenName}:`,
-        tokenInfoError
-      );
+    } catch (mptTokenInfoError) {
+      console.error(`Error querying token info for MPT:`, mptTokenInfoError);
     }
-
-    return tokenId;
-  } catch (error) {
-    console.error(`Error creating ${tokenName}:`, error);
-  }
-}
-
-async function main() {
-  try {
-    // Ensure required environment variables are available
-    if (!process.env.ACCOUNT_ID || !process.env.ACCOUNT_PRIVATE_KEY) {
-      throw new Error("Please set required keys in .env file.");
-    }
-
-    // Create Mintable Staking Token (MST)
-    const mstTokenId = await createToken(
-      "Mintable Staking Token",
-      "MST",
-      1,
-      100
-    );
-    console.log(`- Created MST token with ID: ${mstTokenId} \n`);
-
-    // Create Mintable Payment Token (MPT)
-    const mptTokenId = await createToken(
-      "Mintable Payment Token",
-      "MPT",
-      1,
-      100
-    );
-    console.log(`- Created MPT token with ID: ${mptTokenId} \n`);
 
     // URLs for tokens
     const mstTokenUrl = `https://hashscan.io/testnet/token/${mstTokenId}`;
@@ -116,13 +127,6 @@ async function main() {
 
     console.log(`MST Token URL: ${mstTokenUrl}`);
     console.log(`MPT Token URL: ${mptTokenUrl}`);
-
-    return {
-      mstTokenId,
-      mptTokenId,
-      mstTokenUrl,
-      mptTokenUrl,
-    };
   } catch (error) {
     console.error("Error in main function:", error);
   }
