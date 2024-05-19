@@ -8,8 +8,7 @@ import "./HederaResponseCodes.sol";
 contract RewardDistribution is HederaTokenService {
     address public mstTokenAddress;
     address public mptTokenAddress;
-    address public feeRecipient;
-    uint64 public feePercentage;
+    address public treasuryAddress;
 
     mapping(address => uint64) public staked;
     mapping(address => uint64) public rewards;
@@ -22,13 +21,12 @@ contract RewardDistribution is HederaTokenService {
     event Unstaked(address indexed user, uint64 amount);
     event RewardClaimed(address indexed user, uint64 reward);
     event RewardAdded(uint64 amount);
-    event TransactionProcessed(address indexed sender, uint64 amount, uint64 fee);
+    event TransactionProcessed(address indexed sender, uint64 amount);
 
-    constructor(address _mstTokenAddress, address _mptTokenAddress, address _feeRecipient, uint64 _feePercentage) {
+    constructor(address _mstTokenAddress, address _mptTokenAddress, address _treasuryAddress) {
         mstTokenAddress = _mstTokenAddress;
         mptTokenAddress = _mptTokenAddress;
-        feeRecipient = _feeRecipient;
-        feePercentage = _feePercentage;
+        treasuryAddress = _treasuryAddress;
     }
 
     function stakeTokens(uint64 amount) external {
@@ -72,7 +70,7 @@ contract RewardDistribution is HederaTokenService {
         updateReward(msg.sender);
         uint64 reward = rewards[msg.sender];
         rewards[msg.sender] = 0;
-        int response = HederaTokenService.transferToken(mptTokenAddress, address(this), msg.sender, int64(reward));
+        int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, msg.sender, int64(reward));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Claim Rewards Failed");
         }
@@ -88,7 +86,7 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function addReward(uint64 amount) internal {
-        int response = HederaTokenService.transferToken(mptTokenAddress, feeRecipient, address(this), int64(amount));
+        int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, address(this), int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Add Reward Failed");
         }
@@ -103,18 +101,11 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function processTransaction(uint64 amount, address recipient) external {
-        uint64 fee = (amount * feePercentage) / 10000;
-        uint64 amountAfterFee = amount - fee;
-        int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, feeRecipient, int64(fee));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Fee Transfer Failed");
-        }
-        addReward(fee);
-        response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, recipient, int64(amountAfterFee));
+        int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Transaction Failed");
         }
-        emit TransactionProcessed(msg.sender, amount, fee);
+        emit TransactionProcessed(msg.sender, amount);
     }
 
     function mintTokens(address token, uint64 amount) external {

@@ -1,22 +1,30 @@
-// Import necessary modules and dependencies
-const fs = require("fs").promises; // File system module for reading files asynchronously
+console.clear();
+require("dotenv").config();
 const {
   Client,
+  AccountId,
   PrivateKey,
-  ContractCreateFlow,
+  FileCreateTransaction,
+  FileAppendTransaction,
+  ContractCreateTransaction,
   ContractFunctionParameters,
-} = require("@hashgraph/sdk"); // Hedera SDK
-require("dotenv").config(); // Load environment variables from .env file
+  TokenUpdateTransaction,
+} = require("@hashgraph/sdk");
+const fs = require("fs").promises;
 
 // Function to convert Hedera address to Ethereum-style hexadecimal address
 function hederaToHexAddress(hederaAddress) {
-  const [shard, realm, num] = hederaAddress.split(".").map(Number); // Split Hedera address into shard, realm, and number parts and convert them to numbers
-  const buf = Buffer.alloc(20); // Allocate a 20-byte buffer
-  buf.writeUInt32BE(shard, 0); // Write shard part to buffer
-  buf.writeUInt32BE(realm, 4); // Write realm part to buffer
-  buf.writeUInt32BE(num, 8); // Write number part to buffer
-  return "0x" + buf.toString("hex").padStart(40, "0"); // Convert buffer to hexadecimal string and pad to 40 characters, then return with "0x" prefix
+  const [shard, realm, num] = hederaAddress.split(".").map(Number);
+  const buf = Buffer.alloc(20);
+  buf.writeUInt32BE(shard, 0);
+  buf.writeUInt32BE(realm, 4);
+  buf.writeUInt32BE(num, 8);
+  return "0x" + buf.toString("hex").padStart(40, "0");
 }
+
+const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
+const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
+const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
 async function main() {
   // Ensure required environment variables are available
@@ -25,81 +33,114 @@ async function main() {
     !process.env.ACCOUNT_PRIVATE_KEY ||
     !process.env.MST_TOKEN_ADDRESS ||
     !process.env.MPT_TOKEN_ADDRESS ||
-    !process.env.FEE_RECIPIENT
+    !process.env.TREASURY_ADDRESS
   ) {
-    throw new Error("Please set required keys in .env file."); // Throw error if any required environment variable is missing
+    throw new Error("Please set required keys in .env file.");
   }
 
-  const accountId = process.env.ACCOUNT_ID; // Get account ID from environment variable
-  const accountKey = PrivateKey.fromStringECDSA(
-    process.env.ACCOUNT_PRIVATE_KEY
-  ); // Get private key from environment variable
+  const accountId = process.env.ACCOUNT_ID;
+  const mstTokenHexAddress = hederaToHexAddress(process.env.MST_TOKEN_ADDRESS);
+  const mptTokenHexAddress = hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS);
+  const treasuryHexAddress = hederaToHexAddress(process.env.TREASURY_ADDRESS);
 
-  // Initialize Hedera client
-  const client = Client.forTestnet(); // Create a client for Hedera testnet
-  client.setOperator(accountId, accountKey); // Set the operator account ID and private key
-
-  // Convert Hedera addresses to Ethereum-style addresses
-  const mptTokenHexAddress = hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS); // Convert MPT token address to hex
-
-  // Deploy RewardDistribution contract
-  const rewardDistributionAbi = await fs.readFile(
-    "./output/RewardDis_sol_RewardDistribution.abi",
-    { encoding: "utf8" }
-  ); // Read ABI file for RewardDistribution contract
+  // Load contract bytecode
   const rewardDistributionBytecode = await fs.readFile(
     "./output/RewardDis_sol_RewardDistribution.bin",
     { encoding: "utf8" }
-  ); // Read bytecode file for RewardDistribution contract
+  );
 
-  const rewardDistributionCreateTx = new ContractCreateFlow() // Create a new contract creation transaction
-    .setGas(1000000) // Set gas limit
-    .setBytecode(rewardDistributionBytecode) // Set contract bytecode
+  // Create a file on Hedera and store the contract bytecode
+  const fileCreateTx = new FileCreateTransaction()
+    .setKeys([operatorKey])
+    .freezeWith(client);
+  const fileCreateSign = await fileCreateTx.sign(operatorKey);
+  const fileCreateSubmit = await fileCreateSign.execute(client);
+  const fileCreateRx = await fileCreateSubmit.getReceipt(client);
+  const bytecodeFileId = fileCreateRx.fileId;
+  console.log(`- The smart contract bytecode file ID is ${bytecodeFileId}`);
+
+  // Append contents to the file
+  const fileAppendTx = new FileAppendTransaction()
+    .setFileId(bytecodeFileId)
+    .setContents(rewardDistributionBytecode)
+    .setMaxChunks(10)
+    .freezeWith(client);
+  const fileAppendSign = await fileAppendTx.sign(operatorKey);
+  const fileAppendSubmit = await fileAppendSign.execute(client);
+  const fileAppendRx = await fileAppendSubmit.getReceipt(client);
+  console.log(`- Content added: ${fileAppendRx.status} \n`);
+
+  // Deploy RewardDistribution contract
+  const rewardDistributionCreateTx = new ContractCreateTransaction()
+    .setBytecodeFileId(bytecodeFileId)
+    .setGas(3000000)
     .setConstructorParameters(
-      // Set constructor parameters
       new ContractFunctionParameters()
-        .addAddress(hederaToHexAddress(process.env.MST_TOKEN_ADDRESS)) // Add MST token address
-        .addAddress(hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS)) // Add MPT token address
+        .addAddress(mstTokenHexAddress)
+        .addAddress(mptTokenHexAddress)
+        .addAddress(treasuryHexAddress)
     );
-
   const rewardDistributionSubmit = await rewardDistributionCreateTx.execute(
     client
-  ); // Execute the transaction
+  );
   const rewardDistributionReceipt = await rewardDistributionSubmit.getReceipt(
     client
-  ); // Get the receipt of the transaction
-  const rewardDistributionAddress =
-    rewardDistributionReceipt.contractId.toString(); // Get the contract ID as a string
+  );
 
+  // Check if the contract creation was successful
+  if (rewardDistributionReceipt.status.toString() !== "SUCCESS") {
+    console.error(
+      `- Contract creation failed with status: ${rewardDistributionReceipt.status.toString()}`
+    );
+    return;
+  }
+
+  const rewardDistributionAddress =
+    rewardDistributionReceipt.contractId.toString();
   console.log(
     `- RewardDistribution contract deployed at: ${rewardDistributionAddress}`
-  ); // Log the RewardDistribution contract address
+  );
+
+  // Update MST token to be managed by the contract
+  const tokenUpdateTxMST = await new TokenUpdateTransaction()
+    .setTokenId(process.env.MST_TOKEN_ADDRESS)
+    .setSupplyKey(rewardDistributionReceipt.contractId)
+    .freezeWith(client)
+    .sign(operatorKey);
+  const tokenUpdateSubmitMST = await tokenUpdateTxMST.execute(client);
+  const tokenUpdateRxMST = await tokenUpdateSubmitMST.getReceipt(client);
+  console.log(`- MST Token update status: ${tokenUpdateRxMST.status}`);
+
+  // Update MPT token to be managed by the contract
+  const tokenUpdateTxMPT = await new TokenUpdateTransaction()
+    .setTokenId(process.env.MPT_TOKEN_ADDRESS)
+    .setSupplyKey(rewardDistributionReceipt.contractId)
+    .freezeWith(client)
+    .sign(operatorKey);
+  const tokenUpdateSubmitMPT = await tokenUpdateTxMPT.execute(client);
+  const tokenUpdateRxMPT = await tokenUpdateSubmitMPT.getReceipt(client);
+  console.log(`- MPT Token update status: ${tokenUpdateRxMPT.status}`);
 
   // Output results
-  const accountHexAddress = hederaToHexAddress(accountId); // Convert account ID to hex address
-  const accountExplorerUrl = `https://hashscan.io/testnet/account/${accountId}/?ph=1&pt=1`; // Generate account explorer URL
-  const feeTokenExplorerUrl = `https://hashscan.io/testnet/contract/${feeTokenAddress}`; // Generate FeeToken explorer URL
-  const rewardDistributionExplorerUrl = `https://hashscan.io/testnet/contract/${rewardDistributionAddress}`; // Generate RewardDistribution explorer URL
+  const accountHexAddress = hederaToHexAddress(accountId);
+  const accountExplorerUrl = `https://hashscan.io/testnet/account/${accountId}/?ph=1&pt=1`;
+  const rewardDistributionExplorerUrl = `https://hashscan.io/testnet/contract/${rewardDistributionAddress}`;
 
-  console.log(`accountId: ${accountId}`); // Log account ID
-  console.log(`accountAddress: ${accountHexAddress}`); // Log account hex address
-  console.log(`accountExplorerUrl: ${accountExplorerUrl}`); // Log account explorer URL
-  console.log(`feeTokenAddress: ${feeTokenAddress}`); // Log FeeToken address
-  console.log(`feeTokenExplorerUrl: ${feeTokenExplorerUrl}`); // Log FeeToken explorer URL
-  console.log(`rewardDistributionAddress: ${rewardDistributionAddress}`); // Log RewardDistribution address
+  console.log(`accountId: ${accountId}`);
+  console.log(`accountAddress: ${accountHexAddress}`);
+  console.log(`accountExplorerUrl: ${accountExplorerUrl}`);
+  console.log(`rewardDistributionAddress: ${rewardDistributionAddress}`);
   console.log(
     `rewardDistributionExplorerUrl: ${rewardDistributionExplorerUrl}`
-  ); // Log RewardDistribution explorer URL
+  );
 
   return {
     accountId,
     accountHexAddress,
     accountExplorerUrl,
-    feeTokenAddress,
-    feeTokenExplorerUrl,
     rewardDistributionAddress,
     rewardDistributionExplorerUrl,
   };
 }
 
-main().catch(console.error); // Run the main function and catch any errors
+main().catch(console.error);
