@@ -117,12 +117,17 @@ contract RewardDistribution is HederaTokenService {
         }
     }
 
-    function tokenAssociate(address user, address[] memory tokens) external {
-        for (uint64 i = 0; i < tokens.length; i++) {
-            int response = HederaTokenService.associateToken(user, tokens[i]);
-            if (response != HederaResponseCodes.SUCCESS) {
-                revert("Associate Failed");
-            }
+    function associateMSTToken(address user) external {
+        int response = HederaTokenService.associateToken(user, mstTokenAddress);
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("Associate MST Token Failed");
+        }
+    }
+
+    function associateMPTToken(address user) external {
+        int response = HederaTokenService.associateToken(user, mptTokenAddress);
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("Associate MPT Token Failed");
         }
     }
 }
