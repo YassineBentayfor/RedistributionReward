@@ -8,19 +8,14 @@ const {
   FileAppendTransaction,
   ContractCreateTransaction,
   ContractFunctionParameters,
+  TokenCreateTransaction,
+  ContractExecuteTransaction,
+  AccountAllowanceApproveTransaction,
+  AccountBalanceQuery,
+  Hbar,
   TokenUpdateTransaction,
 } = require("@hashgraph/sdk");
 const fs = require("fs").promises;
-
-// Function to convert Hedera address to Ethereum-style hexadecimal address
-function hederaToHexAddress(hederaAddress) {
-  const [shard, realm, num] = hederaAddress.split(".").map(Number);
-  const buf = Buffer.alloc(20);
-  buf.writeUInt32BE(shard, 0);
-  buf.writeUInt32BE(realm, 4);
-  buf.writeUInt32BE(num, 8);
-  return "0x" + buf.toString("hex").padStart(40, "0");
-}
 
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
 const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
@@ -38,15 +33,18 @@ async function main() {
     throw new Error("Please set required keys in .env file.");
   }
 
-  const accountId = process.env.ACCOUNT_ID;
-  const mstTokenHexAddress = hederaToHexAddress(process.env.MST_TOKEN_ADDRESS);
-  const mptTokenHexAddress = hederaToHexAddress(process.env.MPT_TOKEN_ADDRESS);
-  const treasuryHexAddress = hederaToHexAddress(process.env.TREASURY_ADDRESS);
+  const accountId = AccountId.fromString(process.env.ACCOUNT_ID);
+  const mstTokenAddress = AccountId.fromString(
+    process.env.MST_TOKEN_ADDRESS
+  ).toSolidityAddress();
+  const mptTokenAddress = AccountId.fromString(
+    process.env.MPT_TOKEN_ADDRESS
+  ).toSolidityAddress();
+  const treasuryAccountId = AccountId.fromString(process.env.TREASURY_ADDRESS);
 
   // Load contract bytecode
   const rewardDistributionBytecode = await fs.readFile(
-    "./output/RewardDis_sol_RewardDistribution.bin",
-    { encoding: "utf8" }
+    "./RewardDis_sol_RewardDistribution.bin"
   );
 
   // Create a file on Hedera and store the contract bytecode
@@ -73,13 +71,14 @@ async function main() {
   // Deploy RewardDistribution contract
   const rewardDistributionCreateTx = new ContractCreateTransaction()
     .setBytecodeFileId(bytecodeFileId)
-    .setGas(3000000)
+    .setGas(3000000) // Adjust gas limit as needed
     .setConstructorParameters(
       new ContractFunctionParameters()
-        .addAddress(mstTokenHexAddress)
-        .addAddress(mptTokenHexAddress)
-        .addAddress(treasuryHexAddress)
-    );
+        .addAddress(mstTokenAddress)
+        .addAddress(mptTokenAddress)
+        .addAddress(treasuryAccountId.toSolidityAddress())
+    )
+    .setAdminKey(operatorKey);
   const rewardDistributionSubmit = await rewardDistributionCreateTx.execute(
     client
   );
@@ -95,12 +94,22 @@ async function main() {
     return;
   }
 
-  const rewardDistributionAddress =
-    rewardDistributionReceipt.contractId.toString();
+  const rewardDistributionContractId = rewardDistributionReceipt.contractId;
   console.log(
-    `- RewardDistribution contract deployed at: ${rewardDistributionAddress}`
+    `- RewardDistribution contract deployed at: ${rewardDistributionContractId}`
   );
 
+  // Approve the token allowance for MST
+  const transactionAllowanceMST = new AccountAllowanceApproveTransaction()
+    .approveTokenAllowance(
+      process.env.MST_TOKEN_ADDRESS,
+      accountId,
+      rewardDistributionContractId,
+      1000000000
+    )
+    .freezeWith(client);
+
+  // Sign the transaction with the owner account key
   // Update MST token to be managed by the contract
   const tokenUpdateTxMST = await new TokenUpdateTransaction()
     .setTokenId(process.env.MST_TOKEN_ADDRESS)
@@ -121,26 +130,42 @@ async function main() {
   const tokenUpdateRxMPT = await tokenUpdateSubmitMPT.getReceipt(client);
   console.log(`- MPT Token update status: ${tokenUpdateRxMPT.status}`);
 
-  // Output results
-  const accountHexAddress = hederaToHexAddress(accountId);
-  const accountExplorerUrl = `https://hashscan.io/testnet/account/${accountId}/?ph=1&pt=1`;
-  const rewardDistributionExplorerUrl = `https://hashscan.io/testnet/contract/${rewardDistributionAddress}`;
-
-  console.log(`accountId: ${accountId}`);
-  console.log(`accountAddress: ${accountHexAddress}`);
-  console.log(`accountExplorerUrl: ${accountExplorerUrl}`);
-  console.log(`rewardDistributionAddress: ${rewardDistributionAddress}`);
+  const signTxAllowanceMST = await transactionAllowanceMST.sign(operatorKey);
+  const txResponseAllowanceMST = await signTxAllowanceMST.execute(client);
+  const receiptAllowanceMST = await txResponseAllowanceMST.getReceipt(client);
+  const transactionStatusAllowanceMST = receiptAllowanceMST.status;
   console.log(
-    `rewardDistributionExplorerUrl: ${rewardDistributionExplorerUrl}`
+    "The transaction consensus status for the MST allowance function is " +
+      transactionStatusAllowanceMST.toString()
   );
 
-  return {
-    accountId,
-    accountHexAddress,
-    accountExplorerUrl,
-    rewardDistributionAddress,
-    rewardDistributionExplorerUrl,
-  };
+  // Approve the token allowance for MPT
+  const transactionAllowanceMPT = new AccountAllowanceApproveTransaction()
+    .approveTokenAllowance(
+      process.env.MPT_TOKEN_ADDRESS,
+      accountId,
+      rewardDistributionContractId,
+      1000000000
+    )
+    .freezeWith(client);
+
+  // Sign the transaction with the owner account key
+  const signTxAllowanceMPT = await transactionAllowanceMPT.sign(operatorKey);
+  const txResponseAllowanceMPT = await signTxAllowanceMPT.execute(client);
+  const receiptAllowanceMPT = await txResponseAllowanceMPT.getReceipt(client);
+  const transactionStatusAllowanceMPT = receiptAllowanceMPT.status;
+  console.log(
+    "The transaction consensus status for the MPT allowance function is " +
+      transactionStatusAllowanceMPT.toString()
+  );
+
+  // Verify your account received the tokens
+  const newAccountBalance = await new AccountBalanceQuery()
+    .setAccountId(accountId)
+    .execute(client);
+  console.log(
+    "My new account balance is " + newAccountBalance.tokens.toString()
+  );
 }
 
 main().catch(console.error);

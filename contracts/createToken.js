@@ -73,7 +73,7 @@ async function main() {
     }
 
     // Create Mintable Payment Token (MPT) with a 1% fee
-    console.log(`Creating Mintable Payment Token (MPT) with a 1% fee...`);
+    console.log(`Creating Mintable Payment Token (MPT) with a 10% fee...`);
     const customFee = new CustomFractionalFee()
       .setNumerator(1)
       .setDenominator(10)
