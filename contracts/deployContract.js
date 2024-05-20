@@ -8,20 +8,24 @@ const {
   FileAppendTransaction,
   ContractCreateTransaction,
   ContractFunctionParameters,
-
   AccountAllowanceApproveTransaction,
-
   TokenUpdateTransaction,
+  tr,
 } = require("@hashgraph/sdk");
 const fs = require("fs").promises;
 
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
 const operatorKey = PrivateKey.fromStringECDSA(process.env.ACCOUNT_PRIVATE_KEY);
-const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-const mstTokenAddressEther = process.env.MST_TOKEN_ADDRESS;
-const mptTokenAddressEther = process.env.MPT_TOKEN_ADDRESS;
-const treasuryAccountIdEther = process.env.TREASURY_ADDRESS;
+const account2Id = AccountId.fromString(process.env.ACCOUNT2_ID);
+const account2Key = PrivateKey.fromStringECDSA(
+  process.env.ACCOUNT2_PRIVATE_KEY
+);
+const account3Id = AccountId.fromString(process.env.ACCOUNT3_ID);
+const account3Key = PrivateKey.fromStringECDSA(
+  process.env.ACCOUNT3_PRIVATE_KEY
+);
 
+const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 const mstTokenAddress = AccountId.fromString(process.env.MST_TOKEN_ADDRESS);
 const mptTokenAddress = AccountId.fromString(process.env.MPT_TOKEN_ADDRESS);
 const treasuryAccountId = AccountId.fromString(process.env.TREASURY_ADDRESS);
@@ -100,25 +104,41 @@ async function main() {
     `- RewardDistribution contract deployed at: ${rewardDistributionContractId}`
   );
 
-  // Approve the token allowance for MST
+  // Approve the token allowance for MPT
   const transactionAllowanceMST = new AccountAllowanceApproveTransaction()
     .approveTokenAllowance(
       process.env.MST_TOKEN_ADDRESS,
-      accountId,
+      operatorId,
       rewardDistributionContractId,
-      1000000
+      10000000
+    )
+    .approveTokenAllowance(
+      process.env.MST_TOKEN_ADDRESS,
+      account2Id,
+      rewardDistributionContractId,
+      10000000
+    )
+    .approveTokenAllowance(
+      process.env.MST_TOKEN_ADDRESS,
+      account3Id,
+      rewardDistributionContractId,
+      10000000
     )
     .freezeWith(client);
 
-  // Sign the transaction with the owner account key
+  // Sign the transaction with the necessary keys
   const signTxAllowanceMST = await transactionAllowanceMST.sign(operatorKey);
-  const txResponseAllowanceMST = await signTxAllowanceMST.execute(client);
+  const signTxAllowanceMST2 = await signTxAllowanceMST.sign(account2Key);
+  const signTxAllowanceMST3 = await signTxAllowanceMST2.sign(account3Key);
+
+  const txResponseAllowanceMST = await signTxAllowanceMST3.execute(client);
   const receiptAllowanceMST = await txResponseAllowanceMST.getReceipt(client);
   const transactionStatusAllowanceMST = receiptAllowanceMST.status;
   console.log(
     "The transaction consensus status for the MST allowance function is " +
       transactionStatusAllowanceMST.toString()
   );
+
   // Update MST token to be managed by the contract
   const tokenUpdateTxMST = await new TokenUpdateTransaction()
     .setTokenId(process.env.MST_TOKEN_ADDRESS)
@@ -129,6 +149,41 @@ async function main() {
   const tokenUpdateRxMST = await tokenUpdateSubmitMST.getReceipt(client);
   console.log(`- MST Token update status: ${tokenUpdateRxMST.status}`);
 
+  // Approve the token allowance for MPT
+  const transactionAllowanceMPT = new AccountAllowanceApproveTransaction()
+    .approveTokenAllowance(
+      process.env.MPT_TOKEN_ADDRESS,
+      operatorId,
+      rewardDistributionContractId,
+      10000000
+    )
+    .approveTokenAllowance(
+      process.env.MPT_TOKEN_ADDRESS,
+      account2Id,
+      rewardDistributionContractId,
+      10000000
+    )
+    .approveTokenAllowance(
+      process.env.MPT_TOKEN_ADDRESS,
+      account3Id,
+      rewardDistributionContractId,
+      10000000
+    )
+    .freezeWith(client);
+
+  // Sign the transaction with the necessary keys
+  const signTxAllowanceMPT = await transactionAllowanceMPT.sign(operatorKey);
+  const signTxAllowanceMPT2 = await signTxAllowanceMPT.sign(account2Key);
+  const signTxAllowanceMPT3 = await signTxAllowanceMPT2.sign(account3Key);
+
+  const txResponseAllowanceMPT = await signTxAllowanceMPT3.execute(client);
+  const receiptAllowanceMPT = await txResponseAllowanceMPT.getReceipt(client);
+  const transactionStatusAllowanceMPT = receiptAllowanceMPT.status;
+  console.log(
+    "The transaction consensus status for the MPT allowance function is " +
+      transactionStatusAllowanceMPT.toString()
+  );
+
   // Update MPT token to be managed by the contract
   const tokenUpdateTxMPT = await new TokenUpdateTransaction()
     .setTokenId(process.env.MPT_TOKEN_ADDRESS)
@@ -138,26 +193,6 @@ async function main() {
   const tokenUpdateSubmitMPT = await tokenUpdateTxMPT.execute(client);
   const tokenUpdateRxMPT = await tokenUpdateSubmitMPT.getReceipt(client);
   console.log(`- MPT Token update status: ${tokenUpdateRxMPT.status}`);
-
-  // Approve the token allowance for MPT
-  const transactionAllowanceMPT = new AccountAllowanceApproveTransaction()
-    .approveTokenAllowance(
-      process.env.MPT_TOKEN_ADDRESS,
-      accountId,
-      rewardDistributionContractId,
-      10000000
-    )
-    .freezeWith(client);
-
-  // Sign the transaction with the owner account key
-  const signTxAllowanceMPT = await transactionAllowanceMPT.sign(operatorKey);
-  const txResponseAllowanceMPT = await signTxAllowanceMPT.execute(client);
-  const receiptAllowanceMPT = await txResponseAllowanceMPT.getReceipt(client);
-  const transactionStatusAllowanceMPT = receiptAllowanceMPT.status;
-  console.log(
-    "The transaction consensus status for the MPT allowance function is " +
-      transactionStatusAllowanceMPT.toString()
-  );
 
   console.log(
     "The RewardDistribution contract has been successfully deployed and configured."
