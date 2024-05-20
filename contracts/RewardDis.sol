@@ -21,8 +21,7 @@ contract RewardDistribution is HederaTokenService {
     event Unstaked(address indexed user, uint64 amount);
     event RewardClaimed(address indexed user, uint64 reward);
     event RewardAdded(uint64 amount);
-    event MstTokensTransferred(address indexed sender, uint64 amount, address recipient);
-    event MptTokensTransferred(address indexed sender, uint64 amount, address recipient);
+    event TransactionProcessed(address indexed sender, uint64 amount);
 
     constructor(address _mstTokenAddress, address _mptTokenAddress, address _treasuryAddress) {
         mstTokenAddress = _mstTokenAddress;
@@ -34,8 +33,8 @@ contract RewardDistribution is HederaTokenService {
         return "Hello, Hedera!";
     }
 
-    function stakeTokens(uint64 amount) external {
-        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, address(this), int64(amount));
+    function transferMstTokens(uint64 amount, address recipient) external {
+        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Stake Failed");
         }
@@ -54,7 +53,7 @@ contract RewardDistribution is HederaTokenService {
         updateReward(msg.sender);
         staked[msg.sender] -= amount;
         totalStaked -= amount;
-        int response = HederaTokenService.transferToken(mstTokenAddress, address(this), msg.sender, int64(amount));
+        int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Unstake Failed");
         }
@@ -105,20 +104,12 @@ contract RewardDistribution is HederaTokenService {
         }
     }
 
-    function transferMstTokens(uint64 amount, address recipient) external {
-        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("MST Token Transfer Failed");
-        }
-        emit MstTokensTransferred(msg.sender, amount, recipient);
-    }
-
     function transferMptTokens(uint64 amount, address recipient) external {
         int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
-            revert("MPT Token Transfer Failed");
+            revert("Transaction Failed");
         }
-        emit MptTokensTransferred(msg.sender, amount, recipient);
+        emit TransactionProcessed(msg.sender, amount);
     }
 
     function mintTokens(address token, uint64 amount) external {

@@ -142,7 +142,7 @@ async function main() {
   // Update MST token to be managed by the contract
   const tokenUpdateTxMST = await new TokenUpdateTransaction()
     .setTokenId(process.env.MST_TOKEN_ADDRESS)
-    .setSupplyKey(rewardDistributionContractId)
+    .setSupplyKey(operatorKey)
     .freezeWith(client)
     .sign(operatorKey);
   const tokenUpdateSubmitMST = await tokenUpdateTxMST.execute(client);
@@ -187,7 +187,7 @@ async function main() {
   // Update MPT token to be managed by the contract
   const tokenUpdateTxMPT = await new TokenUpdateTransaction()
     .setTokenId(process.env.MPT_TOKEN_ADDRESS)
-    .setSupplyKey(rewardDistributionContractId)
+    .setSupplyKey(operatorKey)
     .freezeWith(client)
     .sign(operatorKey);
   const tokenUpdateSubmitMPT = await tokenUpdateTxMPT.execute(client);
