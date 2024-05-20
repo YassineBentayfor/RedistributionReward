@@ -21,16 +21,16 @@ contract RewardDistribution is HederaTokenService {
     event Unstaked(address indexed user, uint64 amount);
     event RewardClaimed(address indexed user, uint64 reward);
     event RewardAdded(uint64 amount);
-    event TransactionProcessed(address indexed sender, uint64 amount);
+    event MstTokensTransferred(address indexed sender, uint64 amount, address recipient);
+    event MptTokensTransferred(address indexed sender, uint64 amount, address recipient);
 
-    
     constructor(address _mstTokenAddress, address _mptTokenAddress, address _treasuryAddress) {
         mstTokenAddress = _mstTokenAddress;
         mptTokenAddress = _mptTokenAddress;
         treasuryAddress = _treasuryAddress;
     }
 
-     function getTestValue() public pure returns (string memory) {
+    function getTestValue() public pure returns (string memory) {
         return "Hello, Hedera!";
     }
 
@@ -105,12 +105,20 @@ contract RewardDistribution is HederaTokenService {
         }
     }
 
-    function processTransaction(uint64 amount, address recipient) external {
+    function transferMstTokens(uint64 amount, address recipient) external {
+        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("MST Token Transfer Failed");
+        }
+        emit MstTokensTransferred(msg.sender, amount, recipient);
+    }
+
+    function transferMptTokens(uint64 amount, address recipient) external {
         int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
-            revert("Transaction Failed");
+            revert("MPT Token Transfer Failed");
         }
-        emit TransactionProcessed(msg.sender, amount);
+        emit MptTokensTransferred(msg.sender, amount, recipient);
     }
 
     function mintTokens(address token, uint64 amount) external {
