@@ -134,4 +134,19 @@ contract RewardDistribution is HederaTokenService {
             revert("Associate MPT Token Failed");
         }
     }
+    function stakeTokens(uint64 amount) external {
+    int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, treasuryAddress, int64(amount));
+    if (response != HederaResponseCodes.SUCCESS) {
+        revert("Stake Failed");
+    }
+    updateReward(msg.sender);
+    if (staked[msg.sender] == 0) {
+        stakers.push(msg.sender);
+    }
+    staked[msg.sender] += amount;
+    totalStaked += amount;
+    lastUpdateTime[msg.sender] = uint64(block.timestamp);
+    emit Staked(msg.sender, amount);
+}
+
 }

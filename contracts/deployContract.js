@@ -24,7 +24,9 @@ const account3Id = AccountId.fromString(process.env.ACCOUNT3_ID);
 const account3Key = PrivateKey.fromStringECDSA(
   process.env.ACCOUNT3_PRIVATE_KEY
 );
-
+const treasuryEtherAddress = process.env.TREASURY_ADDRESS_ETHER;
+const mstEtherAddress = process.env.MST_TOKEN_ADDRESS_ETHER;
+const mptEtherAddress = process.env.MPT_TOKEN_ADDRESS_ETHER;
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 const mstTokenAddress = AccountId.fromString(process.env.MST_TOKEN_ADDRESS);
 const mptTokenAddress = AccountId.fromString(process.env.MPT_TOKEN_ADDRESS);
@@ -79,9 +81,9 @@ async function main() {
     .setGas(3000000) // Adjust gas limit as needed
     .setConstructorParameters(
       new ContractFunctionParameters()
-        .addAddress(mstTokenAddress.toSolidityAddress())
-        .addAddress(mptTokenAddress.toSolidityAddress())
-        .addAddress(treasuryAccountId.toSolidityAddress())
+        .addAddress(mstEtherAddress)
+        .addAddress(mptEtherAddress)
+        .addAddress(treasuryEtherAddress)
     )
     .setAdminKey(operatorKey);
   const rewardDistributionSubmit = await rewardDistributionCreateTx.execute(

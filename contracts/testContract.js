@@ -1,3 +1,4 @@
+console.clear();
 require("dotenv").config();
 const {
   AccountId,
@@ -6,7 +7,6 @@ const {
   ContractExecuteTransaction,
   ContractFunctionParameters,
   Hbar,
-  TokenMintTransaction,
 } = require("@hashgraph/sdk");
 
 async function main() {
@@ -14,64 +14,71 @@ async function main() {
   const operatorKey = PrivateKey.fromStringECDSA(
     process.env.ACCOUNT_PRIVATE_KEY
   );
-  const mptTokenId = process.env.MPT_TOKEN_ADDRESS;
-  
-  const mstTokenId = process.env.MST_TOKEN_ADDRESS;
-  const treasuryAddress = AccountId.fromString(process.env.TREASURY_ADDRESS);
+
+  const operator2Id = AccountId.fromString(process.env.ACCOUNT2_ID);
+  const operator2Key = PrivateKey.fromStringECDSA(
+    process.env.ACCOUNT2_PRIVATE_KEY
+  );
+
+  const operator2Evm = process.env.ACCOUNT2_ADDRESS_ETHER;
+
   const contractId = process.env.REWARD_DISTRIBUTION_CONTRACT_ID;
+  const treasuryAddress = AccountId.fromString(process.env.TREASURY_ADDRESS);
 
   const client = Client.forTestnet()
     .setOperator(operatorId, operatorKey)
     .setDefaultMaxTransactionFee(new Hbar(20));
 
-  try {
-    // Mint tokens using the TokenMintTransaction
-    console.log("Minting new tokens...");
-    const tokenMintTx = await new TokenMintTransaction()
-      .setTokenId(mptTokenId)
-      .setAmount(1000)
-      .setMaxTransactionFee(new Hbar(20)) // Use when HBAR is under 10 cents
-      .freezeWith(client);
-
-    // Sign with the operator private key
-    const signTx = await tokenMintTx.sign(operatorKey);
-
-    // Submit the transaction to a Hedera network
-    const txResponse = await signTx.execute(client);
-
-    // Request the receipt of the transaction
-    const receipt = await txResponse.getReceipt(client);
-
-    // Get the transaction consensus status
-    const transactionStatus = receipt.status;
-
-    console.log(
-      "The transaction consensus status " + transactionStatus.toString()
-    );
-  } catch (error) {
-    console.error("Error during minting tokens:", error);
-  }
+  const client2 = Client.forTestnet()
+    .setOperator(operator2Id, operator2Key)
+    .setDefaultMaxTransactionFee(new Hbar(20));
 
   try {
-    // Staking tokens by transferring MST tokens to the treasury address
-    console.log("Staking tokens...");
-    const stakeTx = await new ContractExecuteTransaction()
+    console.log("Staking tokens using stakeTokens function...");
+    const stakeTx1 = await new ContractExecuteTransaction()
       .setContractId(contractId)
       .setGas(3000000)
       .setFunction(
-        "transferMstTokens",
-        new ContractFunctionParameters()
-          .addUint64(1000) // Specify the amount to stake
-          .addAddress(treasuryAddress.toSolidityAddress()) // Specify the treasury address as the recipient
+        "stakeTokens",
+        new ContractFunctionParameters().addUint64(1000) // Specify the amount to stake
       )
       .setMaxTransactionFee(new Hbar(20)); // Set max transaction fee to 20 HBAR
 
-    const stakeTxSubmit = await stakeTx.execute(client);
-    const stakeTxReceipt = await stakeTxSubmit.getReceipt(client);
-    console.log(`- Tokens staked: ${stakeTxReceipt.status.toString()}`);
+    const stakeTxSubmit1 = await stakeTx1.execute(client2);
+    const stakeTxReceipt1 = await stakeTxSubmit1.getReceipt(client2);
+    console.log(
+      `- Tokens staked using stakeTokens function: ${stakeTxReceipt1.status.toString()}`
+    );
   } catch (error) {
-    console.error("Error during staking tokens:", error);
+    console.error(
+      "Error during staking tokens using stakeTokens function:",
+      error
+    );
   }
+  // try {
+  //   console.log("Transferring MST tokens using transferMstTokens function...");
+  //   const transferTx = await new ContractExecuteTransaction()
+  //     .setContractId(contractId)
+  //     .setGas(3000000)
+  //     .setFunction(
+  //       "transferMstTokens",
+  //       new ContractFunctionParameters()
+  //         .addUint64(1000) // Specify the amount to transfer/stake
+  //         .addAddress(operator2Evm) // Specify the treasury address as the recipient
+  //     )
+  //     .setMaxTransactionFee(new Hbar(20)); // Set max transaction fee to 20 HBAR
+
+  //   const transferTxSubmit = await transferTx.execute(client);
+  //   const transferTxReceipt = await transferTxSubmit.getReceipt(client);
+  //   console.log(
+  //     `- Tokens transferred using transferMstTokens function: ${transferTxReceipt.status.toString()}`
+  //   );
+  // } catch (error) {
+  //   console.error(
+  //     "Error during transferring MST tokens using transferMstTokens function:",
+  //     error
+  //   );
+  // }
 }
 
 main().catch(console.error);
