@@ -32,7 +32,7 @@ async function main() {
     .setDefaultMaxTransactionFee(new Hbar(20));
 
   const mptTokenId = process.env.MPT_TOKEN_ADDRESS; // Ensure this is the correct variable
-
+  const mstTokenId = process.env.MST_TOKEN_ADDRESS; // Ensure this is the correct variable
   try {
     var tokenInfo = await new TokenInfoQuery()
       .setTokenId(mptTokenId)
@@ -41,7 +41,7 @@ async function main() {
 
     //Mint another 1,000 tokens and freeze the unsigned transaction for manual signing
     const transaction = await new TokenMintTransaction()
-      .setTokenId(mptTokenId)
+      .setTokenId(mstTokenId)
       .setAmount(100000)
       .setMaxTransactionFee(new Hbar(20)) //Use when HBAR is under 10 cents
       .freezeWith(client);
