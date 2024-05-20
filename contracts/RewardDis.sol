@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.11;
+pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
 import "./HederaTokenService.sol";
@@ -23,10 +23,15 @@ contract RewardDistribution is HederaTokenService {
     event RewardAdded(uint64 amount);
     event TransactionProcessed(address indexed sender, uint64 amount);
 
+    
     constructor(address _mstTokenAddress, address _mptTokenAddress, address _treasuryAddress) {
         mstTokenAddress = _mstTokenAddress;
         mptTokenAddress = _mptTokenAddress;
         treasuryAddress = _treasuryAddress;
+    }
+
+     function getTestValue() public pure returns (string memory) {
+        return "Hello, Hedera!";
     }
 
     function stakeTokens(uint64 amount) external {

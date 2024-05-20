@@ -1,14 +1,11 @@
 require("dotenv").config();
-
 const {
+  Client,
   AccountId,
   PrivateKey,
-  Client,
   ContractCallQuery,
-  ContractExecuteTransaction,
-  ContractFunctionParameters,
   Hbar,
-  HbarUnit,
+  
 } = require("@hashgraph/sdk");
 
 async function main() {
@@ -19,13 +16,15 @@ async function main() {
   const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
   const contractId = process.env.REWARD_DISTRIBUTION_CONTRACT_ID;
+  const contractIdEvm = contractId.toEvmAddress();
 
   try {
     // Call the getTestValue function
     const contractCall = new ContractCallQuery()
-      .setContractId(contractId)
-      .setGas(100_000) // Set sufficient gas
-      .setFunction("getTestValue", new ContractFunctionParameters());
+      .setContractId(contractIdEvm)
+      .setGas(1000000) // Set sufficient gas
+      .setFunction("getTestValue");
+
 
     const response = await contractCall.execute(client);
     const testValue = response.getString(0);
