@@ -48,7 +48,8 @@ async function main() {
 
   // Load contract bytecode
   const rewardDistributionBytecode = await fs.readFile(
-    "./RewardDis_sol_RewardDistribution.bin",
+    //"./RewardDis_sol_RewardDistribution.bin",
+    "./fix2_sol_RewardDistribution.bin",
     {
       encoding: "utf8",
     }
