@@ -29,24 +29,12 @@ contract RewardDistribution is HederaTokenService {
         treasuryAddress = _treasuryAddress;
     }
 
-    function getTestValue() public pure returns (string memory) {
-        return "Hello, Hedera!";
-    }
-
     function transferMstTokens(uint64 amount, address recipient) external {
         int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
-            revert("Stake Failed");
+            revert("Transfer Mst  Failed");
         }
-        updateReward(msg.sender);
-        if (staked[msg.sender] == 0) {
-            stakers.push(msg.sender);
-        }
-        staked[msg.sender] += amount;
-        totalStaked += amount;
-        lastUpdateTime[msg.sender] = uint64(block.timestamp);
-        emit Staked(msg.sender, amount);
-    }
+        emit TransactionProcessed(msg.sender, amount);}
 
     function unstakeTokens(uint64 amount) external {
         require(staked[msg.sender] >= amount, "Cannot unstake more than staked amount");
@@ -78,6 +66,7 @@ contract RewardDistribution is HederaTokenService {
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Claim Rewards Failed");
         }
+        totalRewardPool -= reward;
         emit RewardClaimed(msg.sender, reward);
     }
 
@@ -90,10 +79,6 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function addReward(uint64 amount) internal {
-        int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, address(this), int64(amount));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Add Reward Failed");
-        }
         totalRewardPool += amount;
         emit RewardAdded(amount);
     }
@@ -109,6 +94,8 @@ contract RewardDistribution is HederaTokenService {
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Transaction Failed");
         }
+        uint64 reward = amount / 10;
+        addReward(reward);
         emit TransactionProcessed(msg.sender, amount);
     }
 
@@ -134,19 +121,27 @@ contract RewardDistribution is HederaTokenService {
             revert("Associate MPT Token Failed");
         }
     }
+    
     function stakeTokens(uint64 amount) external {
-    int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, treasuryAddress, int64(amount));
-    if (response != HederaResponseCodes.SUCCESS) {
-        revert("Stake Failed");
+        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, treasuryAddress, int64(amount));
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("Stake Failed");
+        }
+        updateReward(msg.sender);
+        if (staked[msg.sender] == 0) {
+            stakers.push(msg.sender);
+        }
+        staked[msg.sender] += amount;
+        totalStaked += amount;
+        lastUpdateTime[msg.sender] = uint64(block.timestamp);
+        emit Staked(msg.sender, amount);
     }
-    updateReward(msg.sender);
-    if (staked[msg.sender] == 0) {
-        stakers.push(msg.sender);
-    }
-    staked[msg.sender] += amount;
-    totalStaked += amount;
-    lastUpdateTime[msg.sender] = uint64(block.timestamp);
-    emit Staked(msg.sender, amount);
-}
 
+    function getStakes(address user) external view returns (uint64) {
+        return staked[user];
+    }
+
+    function getRewards(address user) external view returns (uint64) {
+        return rewards[user];
+    }
 }

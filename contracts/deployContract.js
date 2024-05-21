@@ -49,7 +49,7 @@ async function main() {
   // Load contract bytecode
   const rewardDistributionBytecode = await fs.readFile(
     //"./RewardDis_sol_RewardDistribution.bin",
-    "./fix2_sol_RewardDistribution.bin",
+    "./RewardDis_sol_RewardDistribution.bin",
     {
       encoding: "utf8",
     }
@@ -187,19 +187,19 @@ async function main() {
       transactionStatusAllowanceMPT.toString()
   );
 
-  // Update MPT token to be managed by the contract
-  const tokenUpdateTxMPT = await new TokenUpdateTransaction()
-    .setTokenId(process.env.MPT_TOKEN_ADDRESS)
-    .setSupplyKey(operatorKey)
-    .freezeWith(client)
-    .sign(operatorKey);
-  const tokenUpdateSubmitMPT = await tokenUpdateTxMPT.execute(client);
-  const tokenUpdateRxMPT = await tokenUpdateSubmitMPT.getReceipt(client);
-  console.log(`- MPT Token update status: ${tokenUpdateRxMPT.status}`);
+  // // Update MPT token to be managed by the contract
+  // const tokenUpdateTxMPT = await new TokenUpdateTransaction()
+  //   .setTokenId(process.env.MPT_TOKEN_ADDRESS)
+  //   .setSupplyKey(operatorKey)
+  //   .freezeWith(client)
+  //   .sign(operatorKey);
+  // const tokenUpdateSubmitMPT = await tokenUpdateTxMPT.execute(client);
+  // const tokenUpdateRxMPT = await tokenUpdateSubmitMPT.getReceipt(client);
+  // console.log(`- MPT Token update status: ${tokenUpdateRxMPT.status}`);
 
-  console.log(
-    "The RewardDistribution contract has been successfully deployed and configured."
-  );
+  // console.log(
+  //   "The RewardDistribution contract has been successfully deployed and configured."
+  // );
 }
 
 main().catch(console.error);
