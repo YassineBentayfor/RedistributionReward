@@ -117,7 +117,7 @@ async function main() {
       );
     }
 
-    // Step 1: Operator sends 20000 MST and 20000 MPT to both Account 1 and Account 2, and 2000 MPT and 40000 MST to Account 3
+    // Step 1: Operator sends 4000 MST and 4000 MPT to both Account 1 and Account 2, and 2000 MPT and 4000 MST to Account 3
     console.log(
       "Operator transferring tokens to Account 1, Account 2, and Account 3..."
     );
@@ -167,7 +167,7 @@ async function main() {
         .setFunction(
           "transferMstTokens",
           new ContractFunctionParameters()
-            .addUint64(20000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -178,7 +178,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 20000 MST to Account 1 using transferMstTokens function:",
+        "Error during transfer of 4000 MST to Account 1 using transferMstTokens function:",
         error
       );
     }
@@ -190,7 +190,7 @@ async function main() {
         .setFunction(
           "transferMstTokens",
           new ContractFunctionParameters()
-            .addUint64(20000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -201,7 +201,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 20000 MST to Account 2 using transferMstTokens function:",
+        "Error during transfer of 4000 MST to Account 2 using transferMstTokens function:",
         error
       );
     }
@@ -213,7 +213,7 @@ async function main() {
         .setFunction(
           "transferMstTokens",
           new ContractFunctionParameters()
-            .addUint64(40000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -224,7 +224,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 40000 MST to Account 3 using transferMstTokens function:",
+        "Error during transfer of 4000 MST to Account 3 using transferMstTokens function:",
         error
       );
     }
@@ -236,7 +236,7 @@ async function main() {
         .setFunction(
           "transferMptTokens",
           new ContractFunctionParameters()
-            .addUint64(20000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -247,7 +247,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 20000 MPT to Account 1 using transferMptTokens function:",
+        "Error during transfer of 4000 MPT to Account 1 using transferMptTokens function:",
         error
       );
     }
@@ -259,7 +259,7 @@ async function main() {
         .setFunction(
           "transferMptTokens",
           new ContractFunctionParameters()
-            .addUint64(20000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -270,7 +270,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 20000 MPT to Account 2 using transferMptTokens function:",
+        "Error during transfer of 4000 MPT to Account 2 using transferMptTokens function:",
         error
       );
     }
@@ -338,15 +338,15 @@ async function main() {
       )}`
     );
 
-    // Step 2: Account 1 stakes 20000 MST and then sends 20000 MPT to Account 2
-    console.log("Account 1 staking 20000 MST...");
+    // Step 2: Account 1 stakes 4000 MST
+    console.log("Account 1 staking 4000 MST...");
     try {
       const stakeTx1 = await new ContractExecuteTransaction()
         .setContractId(contractId)
         .setGas(3000000)
         .setFunction(
           "stakeTokens",
-          new ContractFunctionParameters().addUint64(20000)
+          new ContractFunctionParameters().addUint64(4000)
         )
         .setMaxTransactionFee(new Hbar(20));
       const stakeTxSubmit1 = await stakeTx1.execute(client1);
@@ -356,38 +356,12 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during staking of 20000 MST by Account 1 using stakeTokens function:",
+        "Error during staking of 4000 MST by Account 1 using stakeTokens function:",
         error
       );
     }
 
-    console.log("Account 1 transferring 20000 MPT to Account 2...");
-    try {
-      const transferMptTx1 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "transferMptTokens",
-          new ContractFunctionParameters()
-            .addUint64(20000)
-            .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const transferMptTxSubmit1 = await transferMptTx1.execute(client1);
-      const transferMptTxReceipt1 = await transferMptTxSubmit1.getReceipt(
-        client1
-      );
-      console.log(
-        `- Tokens transferred by Account 1 to Account 2 using transferMptTokens function: ${transferMptTxReceipt1.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during transfer of 20000 MPT by Account 1 to Account 2 using transferMptTokens function:",
-        error
-      );
-    }
-
-    console.log("Balances after staking and transfer:");
+    console.log("Balances after staking:");
     console.log(
       `Account 1 MST: ${await getTokenBalance(
         process.env.ACCOUNT1_ID,
@@ -400,40 +374,16 @@ async function main() {
         process.env.MPT_TOKEN_ADDRESS
       )}`
     );
-    console.log(
-      `Account 2 MST: ${await getTokenBalance(
-        process.env.ACCOUNT2_ID,
-        process.env.MST_TOKEN_ADDRESS
-      )}`
-    );
-    console.log(
-      `Account 2 MPT: ${await getTokenBalance(
-        process.env.ACCOUNT2_ID,
-        process.env.MPT_TOKEN_ADDRESS
-      )}`
-    );
-    console.log(
-      `Account 3 MST: ${await getTokenBalance(
-        process.env.ACCOUNT3_ID,
-        process.env.MST_TOKEN_ADDRESS
-      )}`
-    );
-    console.log(
-      `Account 3 MPT: ${await getTokenBalance(
-        process.env.ACCOUNT3_ID,
-        process.env.MPT_TOKEN_ADDRESS
-      )}`
-    );
 
-    // Step 3: Account 2 stakes 20000 MST and then sends 40000 MPT to Account 3
-    console.log("Account 2 staking 20000 MST...");
+    // Step 3: Account 2 stakes 4000 MST and then sends 4000 MPT to Account 3
+    console.log("Account 2 staking 4000 MST...");
     try {
       const stakeTx2 = await new ContractExecuteTransaction()
         .setContractId(contractId)
         .setGas(3000000)
         .setFunction(
           "stakeTokens",
-          new ContractFunctionParameters().addUint64(20000)
+          new ContractFunctionParameters().addUint64(4000)
         )
         .setMaxTransactionFee(new Hbar(20));
       const stakeTxSubmit2 = await stakeTx2.execute(client2);
@@ -443,12 +393,12 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during staking of 20000 MST by Account 2 using stakeTokens function:",
+        "Error during staking of 4000 MST by Account 2 using stakeTokens function:",
         error
       );
     }
 
-    console.log("Account 2 transferring 40000 MPT to Account 3...");
+    console.log("Account 2 transferring 4000 MPT to Account 3...");
     try {
       const transferMptTx2 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -456,7 +406,7 @@ async function main() {
         .setFunction(
           "transferMptTokens",
           new ContractFunctionParameters()
-            .addUint64(40000)
+            .addUint64(4000)
             .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -469,7 +419,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 40000 MPT by Account 2 to Account 3 using transferMptTokens function:",
+        "Error during transfer of 4000 MPT by Account 2 to Account 3 using transferMptTokens function:",
         error
       );
     }
@@ -512,15 +462,15 @@ async function main() {
       )}`
     );
 
-    // Step 4: Account 3 stakes 40000 MST and then sends 2000 MPT to Account 1 and 20000 MPT to Account 2
-    console.log("Account 3 staking 40000 MST...");
+    // Step 4: Account 3 stakes 4000 MST and then sends 2000 MPT to Account 1 and 2000 MPT to Account 2
+    console.log("Account 3 staking 4000 MST...");
     try {
       const stakeTx3 = await new ContractExecuteTransaction()
         .setContractId(contractId)
         .setGas(3000000)
         .setFunction(
           "stakeTokens",
-          new ContractFunctionParameters().addUint64(40000)
+          new ContractFunctionParameters().addUint64(4000)
         )
         .setMaxTransactionFee(new Hbar(20));
       const stakeTxSubmit3 = await stakeTx3.execute(client3);
@@ -530,7 +480,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during staking of 40000 MST by Account 3 using stakeTokens function:",
+        "Error during staking of 4000 MST by Account 3 using stakeTokens function:",
         error
       );
     }
@@ -561,7 +511,7 @@ async function main() {
       );
     }
 
-    console.log("Account 3 transferring 20000 MPT to Account 2...");
+    console.log("Account 3 transferring 2000 MPT to Account 2...");
     try {
       const transferMptTx4 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -569,7 +519,7 @@ async function main() {
         .setFunction(
           "transferMptTokens",
           new ContractFunctionParameters()
-            .addUint64(20000)
+            .addUint64(2000)
             .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
         )
         .setMaxTransactionFee(new Hbar(20));
@@ -582,7 +532,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during transfer of 20000 MPT by Account 3 to Account 2 using transferMptTokens function:",
+        "Error during transfer of 2000 MPT by Account 3 to Account 2 using transferMptTokens function:",
         error
       );
     }
@@ -625,15 +575,15 @@ async function main() {
       )}`
     );
 
-    // Step 5: All accounts will unstake what they staked
-    console.log("Account 1 unstaking 20000 MST...");
+    // Step 5: Account 1 unstakes 4000 MST
+    console.log("Account 1 unstaking 4000 MST...");
     try {
       const unstakeTx1 = await new ContractExecuteTransaction()
         .setContractId(contractId)
         .setGas(3000000)
         .setFunction(
           "unstakeTokens",
-          new ContractFunctionParameters().addUint64(20000)
+          new ContractFunctionParameters().addUint64(4000)
         )
         .setMaxTransactionFee(new Hbar(20));
       const unstakeTxSubmit1 = await unstakeTx1.execute(client1);
@@ -643,51 +593,7 @@ async function main() {
       );
     } catch (error) {
       console.error(
-        "Error during unstaking of 20000 MST by Account 1 using unstakeTokens function:",
-        error
-      );
-    }
-
-    console.log("Account 2 unstaking 20000 MST...");
-    try {
-      const unstakeTx2 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "unstakeTokens",
-          new ContractFunctionParameters().addUint64(20000)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const unstakeTxSubmit2 = await unstakeTx2.execute(client2);
-      const unstakeTxReceipt2 = await unstakeTxSubmit2.getReceipt(client2);
-      console.log(
-        `- Tokens unstaked by Account 2 using unstakeTokens function: ${unstakeTxReceipt2.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during unstaking of 20000 MST by Account 2 using unstakeTokens function:",
-        error
-      );
-    }
-
-    console.log("Account 3 unstaking 40000 MST...");
-    try {
-      const unstakeTx3 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "unstakeTokens",
-          new ContractFunctionParameters().addUint64(40000)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const unstakeTxSubmit3 = await unstakeTx3.execute(client3);
-      const unstakeTxReceipt3 = await unstakeTxSubmit3.getReceipt(client3);
-      console.log(
-        `- Tokens unstaked by Account 3 using unstakeTokens function: ${unstakeTxReceipt3.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during unstaking of 40000 MST by Account 3 using unstakeTokens function:",
+        "Error during unstaking of 4000 MST by Account 1 using unstakeTokens function:",
         error
       );
     }
@@ -705,6 +611,31 @@ async function main() {
         process.env.MPT_TOKEN_ADDRESS
       )}`
     );
+
+    // Step 6: Account 2 unstakes 4000 MST
+    console.log("Account 2 unstaking 4000 MST...");
+    try {
+      const unstakeTx2 = await new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(3000000)
+        .setFunction(
+          "unstakeTokens",
+          new ContractFunctionParameters().addUint64(4000)
+        )
+        .setMaxTransactionFee(new Hbar(20));
+      const unstakeTxSubmit2 = await unstakeTx2.execute(client2);
+      const unstakeTxReceipt2 = await unstakeTxSubmit2.getReceipt(client2);
+      console.log(
+        `- Tokens unstaked by Account 2 using unstakeTokens function: ${unstakeTxReceipt2.status.toString()}`
+      );
+    } catch (error) {
+      console.error(
+        "Error during unstaking of 4000 MST by Account 2 using unstakeTokens function:",
+        error
+      );
+    }
+
+    console.log("Balances after unstaking:");
     console.log(
       `Account 2 MST: ${await getTokenBalance(
         process.env.ACCOUNT2_ID,
@@ -717,6 +648,31 @@ async function main() {
         process.env.MPT_TOKEN_ADDRESS
       )}`
     );
+
+    // Step 7: Account 3 unstakes 4000 MST
+    console.log("Account 3 unstaking 4000 MST...");
+    try {
+      const unstakeTx3 = await new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(3000000)
+        .setFunction(
+          "unstakeTokens",
+          new ContractFunctionParameters().addUint64(4000)
+        )
+        .setMaxTransactionFee(new Hbar(20));
+      const unstakeTxSubmit3 = await unstakeTx3.execute(client3);
+      const unstakeTxReceipt3 = await unstakeTxSubmit3.getReceipt(client3);
+      console.log(
+        `- Tokens unstaked by Account 3 using unstakeTokens function: ${unstakeTxReceipt3.status.toString()}`
+      );
+    } catch (error) {
+      console.error(
+        "Error during unstaking of 4000 MST by Account 3 using unstakeTokens function:",
+        error
+      );
+    }
+
+    console.log("Balances after unstaking:");
     console.log(
       `Account 3 MST: ${await getTokenBalance(
         process.env.ACCOUNT3_ID,
