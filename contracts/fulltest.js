@@ -66,6 +66,17 @@ async function getStakesAndRewards(client, contractId, account) {
   return { stakes, rewards };
 }
 
+async function claimRewards(client) {
+  const claimRewardsTx = await new ContractExecuteTransaction()
+    .setContractId(process.env.REWARD_DISTRIBUTION_CONTRACT_ID)
+    .setGas(3000000)
+    .setFunction("claimRewards")
+    .setMaxTransactionFee(new Hbar(20));
+  const claimRewardsSubmit = await claimRewardsTx.execute(client);
+  const claimRewardsReceipt = await claimRewardsSubmit.getReceipt(client);
+  console.log(`- Rewards claimed: ${claimRewardsReceipt.status.toString()}`);
+}
+
 async function main() {
   const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
   const operatorKey = PrivateKey.fromStringECDSA(
@@ -90,32 +101,34 @@ async function main() {
   const client2 = Client.forTestnet().setOperator(account2Id, account2Key);
   const client3 = Client.forTestnet().setOperator(account3Id, account3Key);
 
-   try {
-  //   // Preliminary step: Operator sends 3000 MPT to Account 1
-  //   try {
-  //     const transferPrelim = await new ContractExecuteTransaction()
-  //       .setContractId(contractId)
-  //       .setGas(3000000)
-  //       .setFunction(
-  //         "transferMptTokens",
-  //         new ContractFunctionParameters()
-  //           .addUint64(3000)
-  //           .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
-  //       )
-  //       .setMaxTransactionFee(new Hbar(20));
-  //     const transferPrelimSubmit = await transferPrelim.execute(client);
-  //     const transferPrelimReceipt = await transferPrelimSubmit.getReceipt(
-  //       client
-  //     );
-  //     console.log(
-  //       `- Preliminary transfer of 3000 MPT to Account 1: ${transferPrelimReceipt.status.toString()}`
-  //     );
-  //   } catch (error) {
-  //     console.error(
-  //       "Error during preliminary transfer of 3000 MPT to Account 1:",
-  //       error
-  //     );
-  //   }
+  try {
+    // Log initial balances
+    console.log("Balances at the beginning:");
+    //   // Preliminary step: Operator sends 3000 MPT to Account 1
+    //   try {
+    //     const transferPrelim = await new ContractExecuteTransaction()
+    //       .setContractId(contractId)
+    //       .setGas(3000000)
+    //       .setFunction(
+    //         "transferMptTokens",
+    //         new ContractFunctionParameters()
+    //           .addUint64(3000)
+    //           .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
+    //       )
+    //       .setMaxTransactionFee(new Hbar(20));
+    //     const transferPrelimSubmit = await transferPrelim.execute(client);
+    //     const transferPrelimReceipt = await transferPrelimSubmit.getReceipt(
+    //       client
+    //     );
+    //     console.log(
+    //       `- Preliminary transfer of 3000 MPT to Account 1: ${transferPrelimReceipt.status.toString()}`
+    //     );
+    //   } catch (error) {
+    //     console.error(
+    //       "Error during preliminary transfer of 3000 MPT to Account 1:",
+    //       error
+    //     );
+    //   }
 
     // // Step 1: Operator sends 4000 MST and 4000 MPT to both Account 1 and Account 2, and 2000 MPT and 4000 MST to Account 3
     // console.log(
@@ -298,9 +311,7 @@ async function main() {
     //   );
     // }
 
-   // console.log("Transfer complete.");
-
-    console.log("Balances in the beginning transfer:");
+    // console.log("Transfer complete.");
     console.log(
       `Account 1 MST: ${await getTokenBalance(
         process.env.ACCOUNT1_ID,
@@ -338,7 +349,7 @@ async function main() {
       )}`
     );
 
-    // Step 2: Account 1 stakes 4000 MST
+    // Step 1: Account 1 stakes 4000 MST
     console.log("Account 1 staking 4000 MST...");
     try {
       const stakeTx1 = await new ContractExecuteTransaction()
@@ -375,7 +386,7 @@ async function main() {
       )}`
     );
 
-    // Step 3: Account 2 stakes 4000 MST and then sends 4000 MPT to Account 3
+    // Step 2: Account 2 stakes 4000 MST and then sends 4000 MPT to Account 3
     console.log("Account 2 staking 4000 MST...");
     try {
       const stakeTx2 = await new ContractExecuteTransaction()
@@ -462,7 +473,7 @@ async function main() {
       )}`
     );
 
-    // Step 4: Account 3 stakes 4000 MST and then sends 2000 MPT to Account 1 and 2000 MPT to Account 2
+    // Step 3: Account 3 stakes 4000 MST and then sends 2000 MPT to Account 1 and 2000 MPT to Account 2
     console.log("Account 3 staking 4000 MST...");
     try {
       const stakeTx3 = await new ContractExecuteTransaction()
@@ -575,7 +586,17 @@ async function main() {
       )}`
     );
 
-    // Step 5: Account 1 unstakes 4000 MST
+    // Claim rewards before unstaking
+    console.log("Claiming rewards for Account 1...");
+    await claimRewards(client1);
+
+    console.log("Claiming rewards for Account 2...");
+    await claimRewards(client2);
+
+    console.log("Claiming rewards for Account 3...");
+    await claimRewards(client3);
+
+    // Step 4: Account 1 unstakes 4000 MST
     console.log("Account 1 unstaking 4000 MST...");
     try {
       const unstakeTx1 = await new ContractExecuteTransaction()
@@ -612,7 +633,7 @@ async function main() {
       )}`
     );
 
-    // Step 6: Account 2 unstakes 4000 MST
+    // Step 5: Account 2 unstakes 4000 MST
     console.log("Account 2 unstaking 4000 MST...");
     try {
       const unstakeTx2 = await new ContractExecuteTransaction()
@@ -649,7 +670,7 @@ async function main() {
       )}`
     );
 
-    // Step 7: Account 3 unstakes 4000 MST
+    // Step 6: Account 3 unstakes 4000 MST
     console.log("Account 3 unstaking 4000 MST...");
     try {
       const unstakeTx3 = await new ContractExecuteTransaction()
