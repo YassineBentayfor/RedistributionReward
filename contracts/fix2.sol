@@ -4,29 +4,55 @@ pragma experimental ABIEncoderV2;
 
 import "./HederaTokenService.sol";
 import "./HederaResponseCodes.sol";
+library SafeMath {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b <= a, "SafeMath: subtraction overflow");
+        uint256 c = a - b;
+        return c;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
+        }
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, "SafeMath: division by zero");
+        uint256 c = a / b;
+        return c;
+    }
+}
 
 contract RewardDistribution is HederaTokenService {
+    using SafeMath for uint64;
+    using SafeMath for uint256;
+
     address public mstTokenAddress;
     address public mptTokenAddress;
     address public treasuryAddress;
 
     mapping(address => uint64) public staked;
     mapping(address => uint64) public rewards;
-    mapping(address => uint64) public userRewardPerTokenPaid;
+    mapping(address => uint256) public lastCumulativeRewardPerToken;
+    address[] public stakers;
     uint64 public totalStaked;
-    uint64 public rewardPerTokenStored;
-    uint64 public lastUpdateTime;
-
-    uint64 public constant REWARD_RATE = 100;
+    uint256 public cumulativeRewardPerToken;
+    uint64 public totalRewardPool;
 
     event Staked(address indexed user, uint64 amount);
     event Unstaked(address indexed user, uint64 amount);
     event RewardClaimed(address indexed user, uint64 reward);
-    event RewardAdded(uint64 amount);
-    event MstTokensTransferred(address indexed sender, uint64 amount, address recipient);
-    event MptTokensTransferred(address indexed sender, uint64 amount, address recipient);
-    event MintMptToken(address indexed minter, uint64 amount);
-    event MintMstToken(address indexed minter, uint64 amount);
+    event TransactionProcessed(address indexed sender, uint64 amount);
 
     constructor(address _mstTokenAddress, address _mptTokenAddress, address _treasuryAddress) {
         mstTokenAddress = _mstTokenAddress;
@@ -34,124 +60,139 @@ contract RewardDistribution is HederaTokenService {
         treasuryAddress = _treasuryAddress;
     }
 
-    modifier updateReward(address account) {
-        rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = uint64(block.timestamp);
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
-        _;
-    }
-
-    modifier moreThanZero(uint64 amount) {
-        require(amount > 0, "Amount must be greater than zero");
-        _;
-    }
-
-    
-            function rewardPerToken() public view returns (uint64) {
-                if (totalStaked == 0) {
-                    return rewardPerTokenStored;
-                } else {
-                    return rewardPerTokenStored + ((uint64(block.timestamp - lastUpdateTime) * REWARD_RATE * 1e18) / totalStaked);
-                }
-            }
-        
-    
-
-    
-        function earned(address account) public view returns (uint64) {
-            return (staked[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18 + rewards[account];
-        }
-    
-
-    function stakeTokens(uint64 amount) external updateReward(msg.sender) moreThanZero(amount) {
-        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, address(this), int64(amount));
+    function transferMstTokens(uint64 amount, address recipient) external {
+        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
-            revert("Stake Failed");
+            revert("Transfer MST Failed");
         }
-        staked[msg.sender] += amount;
-        totalStaked += amount;
-        emit Staked(msg.sender, amount);
+        emit TransactionProcessed(msg.sender, amount);
     }
 
-    function unstakeTokens(uint64 amount) external updateReward(msg.sender) moreThanZero(amount) {
+    function unstakeTokens(uint64 amount) external {
         require(staked[msg.sender] >= amount, "Cannot unstake more than staked amount");
-        staked[msg.sender] -= amount;
-        totalStaked -= amount;
-        int response = HederaTokenService.transferToken(mstTokenAddress, address(this), msg.sender, int64(amount));
+        if (staked[msg.sender] > 0) {
+            claimRewards();
+        }
+        staked[msg.sender] = uint64(staked[msg.sender].sub(amount));
+        totalStaked = uint64(totalStaked.sub(amount));
+        int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Unstake Failed");
+        }
+        if (staked[msg.sender] == 0) {
+            for (uint64 i = 0; i < stakers.length; i++) {
+                if (stakers[i] == msg.sender) {
+                    stakers[i] = stakers[stakers.length - 1];
+                    stakers.pop();
+                    break;
+                }
+            }
         }
         emit Unstaked(msg.sender, amount);
     }
 
-    function claimRewards() external updateReward(msg.sender) {
+    function unstakeAllTokens() external {
+        uint64 amount = staked[msg.sender];
+        require(amount > 0, "No tokens to unstake");
+        if (staked[msg.sender] > 0) {
+            claimRewards();
+        }
+        staked[msg.sender] = 0;
+        totalStaked = uint64(totalStaked.sub(amount));
+        int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("Unstake Failed");
+        }
+        for (uint64 i = 0; i < stakers.length; i++) {
+            if (stakers[i] == msg.sender) {
+                stakers[i] = stakers[stakers.length - 1];
+                stakers.pop();
+                break;
+            }
+        }
+        emit Unstaked(msg.sender, amount);
+    }
+
+    function claimRewards() public {
+        updateReward(msg.sender);
         uint64 reward = rewards[msg.sender];
-        rewards[msg.sender] = 0;
-        int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, msg.sender, int64(reward));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Claim Rewards Failed");
+        if (reward > 0) {
+            rewards[msg.sender] = 0; // Set to zero before transfer
+            int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, msg.sender, int64(reward));
+            if (response != HederaResponseCodes.SUCCESS) {
+                rewards[msg.sender] = reward; // Revert back on failure
+                revert("Claim Rewards Failed");
+            }
+            totalRewardPool = uint64(totalRewardPool.sub(reward)); // Update reward pool
+            emit RewardClaimed(msg.sender, reward);
         }
-        emit RewardClaimed(msg.sender, reward);
     }
 
-    function addReward(uint64 amount) external {
-        int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, address(this), int64(amount));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Add Reward Failed");
+    function updateReward(address user) internal {
+        if (staked[user] > 0) {
+            uint256 rewardDelta = (cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user])).mul(staked[user]);
+            if (rewardDelta > 0) { // Check if rewardDelta is positive
+                rewards[user] = uint64(rewards[user].add(rewardDelta.div(1e12))); // Adjusting for decimal precision
+            }
         }
-        emit RewardAdded(amount);
+        lastCumulativeRewardPerToken[user] = cumulativeRewardPerToken;
     }
 
-    function mintMptToken(uint64 amount) external {
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(amount);
-        (int response, , ) = HederaTokenService.mintToken(mptTokenAddress, int64(amount), data);
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Mint MPT Token Failed");
+    function addReward(uint64 amount) internal {
+        if (totalStaked > 0) { // Check to avoid division by zero
+            cumulativeRewardPerToken = cumulativeRewardPerToken.add((amount.mul(1e12)).div(totalStaked)); // Adjusting for decimal precision
+            totalRewardPool = uint64(totalRewardPool.add(amount));
         }
-        emit MintMptToken(msg.sender, amount);
-    }
-
-    function mintMstToken(uint64 amount) external {
-        bytes[] memory data = new bytes[](1);
-        data[0] = new bytes(amount);
-        (int response, , ) = HederaTokenService.mintToken(mstTokenAddress, int64(amount), data);
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Mint MST Token Failed");
-        }
-        emit MintMstToken(msg.sender, amount);
-    }
-
-    function transferMstTokens(uint64 amount, address recipient) external {
-        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, recipient, int64(amount));
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("MST Token Transfer Failed");
-        }
-        emit MstTokensTransferred(msg.sender, amount, recipient);
     }
 
     function transferMptTokens(uint64 amount, address recipient) external {
         int response = HederaTokenService.transferToken(mptTokenAddress, msg.sender, recipient, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
-            revert("MPT Token Transfer Failed");
+            revert("Transfer MPT Failed");
         }
-        emit MptTokensTransferred(msg.sender, amount, recipient);
+        uint64 reward = amount / 10; // Assuming a 10% reward is added to the pool
+        addReward(reward);
+        emit TransactionProcessed(msg.sender, amount);
     }
 
-    function associateMSTToken(address user) external {
-        int response = HederaTokenService.associateToken(user, mstTokenAddress);
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Associate MST Token Failed");
+    function stakeTokens(uint64 amount) external {
+        if (staked[msg.sender] > 0) {
+            claimRewards();
         }
+        int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, treasuryAddress, int64(amount));
+        if (response != HederaResponseCodes.SUCCESS) {
+            revert("Stake Failed");
+        }
+        if (staked[msg.sender] == 0) {
+            stakers.push(msg.sender);
+        }
+        staked[msg.sender] = uint64(staked[msg.sender].add(amount));
+        totalStaked = uint64(totalStaked.add(amount));
+        emit Staked(msg.sender, amount);
     }
 
-    function associateMPTToken(address user) external {
-        int response = HederaTokenService.associateToken(user, mptTokenAddress);
-        if (response != HederaResponseCodes.SUCCESS) {
-            revert("Associate MPT Token Failed");
+    function getStakes(address user) external view returns (uint64) {
+        return staked[user];
+    }
+
+    function getRewards(address user) external view returns (uint64) {
+        return rewards[user];
+    }
+
+    function getRewardPool() external view returns (uint64) {
+        return totalRewardPool;
+    }
+
+    function getCumulativeRewardPerToken() external view returns (uint256) {
+        return cumulativeRewardPerToken;
+    }
+
+    function getMyReward() external view returns (uint64) {
+        address user = msg.sender;
+        if (staked[user] > 0) {
+            uint256 rewardDelta = (cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user])).mul(staked[user]);
+            return uint64(rewardDelta.div(1e12)); // Adjusting for decimal precision
         }
+        return 0;
     }
 }
