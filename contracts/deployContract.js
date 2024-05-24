@@ -49,7 +49,7 @@ async function main() {
   // Load contract bytecode
   const rewardDistributionBytecode = await fs.readFile(
     //"./RewardDis_sol_RewardDistribution.bin",
-    "./RewardDis_sol_RewardDistribution.bin",
+    "./fix2_sol_RewardDistribution.bin",
     {
       encoding: "utf8",
     }
@@ -113,19 +113,19 @@ async function main() {
       process.env.MST_TOKEN_ADDRESS,
       operatorId,
       rewardDistributionContractId,
-      10000000
+      100000
     )
     .approveTokenAllowance(
       process.env.MST_TOKEN_ADDRESS,
       account2Id,
       rewardDistributionContractId,
-      10000000
+      100000
     )
     .approveTokenAllowance(
       process.env.MST_TOKEN_ADDRESS,
       account3Id,
       rewardDistributionContractId,
-      10000000
+      100000
     )
     .freezeWith(client);
 
@@ -158,19 +158,19 @@ async function main() {
       process.env.MPT_TOKEN_ADDRESS,
       operatorId,
       rewardDistributionContractId,
-      10000000
+      1000000
     )
     .approveTokenAllowance(
       process.env.MPT_TOKEN_ADDRESS,
       account2Id,
       rewardDistributionContractId,
-      10000000
+      1000000
     )
     .approveTokenAllowance(
       process.env.MPT_TOKEN_ADDRESS,
       account3Id,
       rewardDistributionContractId,
-      10000000
+      1000000
     )
     .freezeWith(client);
 
