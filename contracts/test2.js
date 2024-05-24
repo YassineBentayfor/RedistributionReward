@@ -1,3 +1,4 @@
+console.clear();
 require("dotenv").config();
 const {
   AccountId,
@@ -74,8 +75,6 @@ async function getRewardPool(client, contractId) {
     return null;
   }
 }
-
-
 
 async function getStakesAndRewards(client, contractId, account) {
   try {
@@ -197,7 +196,7 @@ async function main() {
     console.log("Initial stakes and rewards:");
     try {
       console.log("Reward Pool:", await getRewardPool(client, contractId));
-     
+
       console.log(
         "Account 1:",
         await getStakesAndRewards(
@@ -487,7 +486,7 @@ async function main() {
     // Claim rewards before unstaking
     try {
       console.log("Reward Pool:", await getRewardPool(client, contractId));
-    
+
       console.log(
         "Stakes and rewards before claiming:",
         await getStakesAndRewards(
@@ -666,7 +665,7 @@ async function main() {
     }
 
     console.log("Reward Pool:", await getRewardPool(client, contractId));
-   
+
     console.log("All transactions executed successfully.");
   } catch (error) {
     console.error("Error during contract interaction:", error);
