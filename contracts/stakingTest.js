@@ -34,29 +34,6 @@ async function main() {
       "Account 1 transferring 1000 MPT and 2000 MST to Account 2 and Account 3..."
     );
 
-     try {
-       const transferTx1 = await new ContractExecuteTransaction()
-         .setContractId(contractId)
-         .setGas(3000000)
-         .setFunction(
-           "transferMptTokens",
-           new ContractFunctionParameters()
-             .addUint64(10000)
-             .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
-         )
-         .setMaxTransactionFee(new Hbar(20));
-       const transferTxSubmit1 = await transferTx1.execute(client);
-       const transferTxReceipt1 = await transferTxSubmit1.getReceipt(client);
-       console.log(
-         `- Tokens transferred using transferMptTokens function to Account 2: ${transferTxReceipt1.status.toString()}`
-       );
-     } catch (error) {
-       console.error(
-         "Error during transfer of 1000 MPT to Account 2 using transferMptTokens function:",
-         error
-       );
-     }
-
     try {
       const transferTx1 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -80,76 +57,99 @@ async function main() {
       );
     }
 
-    try {
-      const transferTx2 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "transferMptTokens",
-          new ContractFunctionParameters()
-            .addUint64(10000)
-            .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const transferTxSubmit2 = await transferTx2.execute(client);
-      const transferTxReceipt2 = await transferTxSubmit2.getReceipt(client);
-      console.log(
-        `- Tokens transferred using transferMptTokens function to Account 3: ${transferTxReceipt2.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during transfer of 1000 MPT to Account 3 using transferMptTokens function:",
-        error
-      );
-    }
+    // try {
+    //   const transferTx1 = await new ContractExecuteTransaction()
+    //     .setContractId(contractId)
+    //     .setGas(3000000)
+    //     .setFunction(
+    //       "transferMptTokens",
+    //       new ContractFunctionParameters()
+    //         .addUint64(10000)
+    //         .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
+    //     )
+    //     .setMaxTransactionFee(new Hbar(20));
+    //   const transferTxSubmit1 = await transferTx1.execute(client);
+    //   const transferTxReceipt1 = await transferTxSubmit1.getReceipt(client);
+    //   console.log(
+    //     `- Tokens transferred using transferMptTokens function to Account 2: ${transferTxReceipt1.status.toString()}`
+    //   );
+    // } catch (error) {
+    //   console.error(
+    //     "Error during transfer of 1000 MPT to Account 2 using transferMptTokens function:",
+    //     error
+    //   );
+    // }
 
-    try {
-      const transferTx3 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "transferMstTokens",
-          new ContractFunctionParameters()
-            .addUint64(10000)
-            .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const transferTxSubmit3 = await transferTx3.execute(client);
-      const transferTxReceipt3 = await transferTxSubmit3.getReceipt(client);
-      console.log(
-        `- Tokens transferred using transferMstTokens function to Account 2: ${transferTxReceipt3.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during transfer of 2000 MST to Account 2 using transferMstTokens function:",
-        error
-      );
-    }
+    // try {
+    //   const transferTx2 = await new ContractExecuteTransaction()
+    //     .setContractId(contractId)
+    //     .setGas(3000000)
+    //     .setFunction(
+    //       "transferMptTokens",
+    //       new ContractFunctionParameters()
+    //         .addUint64(10000)
+    //         .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
+    //     )
+    //     .setMaxTransactionFee(new Hbar(20));
+    //   const transferTxSubmit2 = await transferTx2.execute(client);
+    //   const transferTxReceipt2 = await transferTxSubmit2.getReceipt(client);
+    //   console.log(
+    //     `- Tokens transferred using transferMptTokens function to Account 3: ${transferTxReceipt2.status.toString()}`
+    //   );
+    // } catch (error) {
+    //   console.error(
+    //     "Error during transfer of 1000 MPT to Account 3 using transferMptTokens function:",
+    //     error
+    //   );
+    // }
 
-    try {
-      const transferTx4 = await new ContractExecuteTransaction()
-        .setContractId(contractId)
-        .setGas(3000000)
-        .setFunction(
-          "transferMstTokens",
-          new ContractFunctionParameters()
-            .addUint64(10000)
-            .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
-        )
-        .setMaxTransactionFee(new Hbar(20));
-      const transferTxSubmit4 = await transferTx4.execute(client);
-      const transferTxReceipt4 = await transferTxSubmit4.getReceipt(client);
-      console.log(
-        `- Tokens transferred using transferMstTokens function to Account 3: ${transferTxReceipt4.status.toString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Error during transfer of 2000 MST to Account 3 using transferMstTokens function:",
-        error
-      );
-    }
+    // try {
+    //   const transferTx3 = await new ContractExecuteTransaction()
+    //     .setContractId(contractId)
+    //     .setGas(3000000)
+    //     .setFunction(
+    //       "transferMstTokens",
+    //       new ContractFunctionParameters()
+    //         .addUint64(10000)
+    //         .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
+    //     )
+    //     .setMaxTransactionFee(new Hbar(20));
+    //   const transferTxSubmit3 = await transferTx3.execute(client);
+    //   const transferTxReceipt3 = await transferTxSubmit3.getReceipt(client);
+    //   console.log(
+    //     `- Tokens transferred using transferMstTokens function to Account 2: ${transferTxReceipt3.status.toString()}`
+    //   );
+    // } catch (error) {
+    //   console.error(
+    //     "Error during transfer of 2000 MST to Account 2 using transferMstTokens function:",
+    //     error
+    //   );
+    // }
 
-    console.log("Transfer complete.");
+    // try {
+    //   const transferTx4 = await new ContractExecuteTransaction()
+    //     .setContractId(contractId)
+    //     .setGas(3000000)
+    //     .setFunction(
+    //       "transferMstTokens",
+    //       new ContractFunctionParameters()
+    //         .addUint64(10000)
+    //         .addAddress(process.env.ACCOUNT3_ADDRESS_ETHER)
+    //     )
+    //     .setMaxTransactionFee(new Hbar(20));
+    //   const transferTxSubmit4 = await transferTx4.execute(client);
+    //   const transferTxReceipt4 = await transferTxSubmit4.getReceipt(client);
+    //   console.log(
+    //     `- Tokens transferred using transferMstTokens function to Account 3: ${transferTxReceipt4.status.toString()}`
+    //   );
+    // } catch (error) {
+    //   console.error(
+    //     "Error during transfer of 2000 MST to Account 3 using transferMstTokens function:",
+    //     error
+    //   );
+    // }
+
+    // console.log("Transfer complete.");
     // try {
     //   const transferTx4 = await new ContractExecuteTransaction()
     //     .setContractId(contractId)
@@ -172,7 +172,6 @@ async function main() {
     //     error
     //   );
     // }
-
 
     // // Step 2: Account 2 stakes 1000 MST
     // console.log("Account 2 staking 1000 MST...");

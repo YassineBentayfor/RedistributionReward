@@ -73,7 +73,9 @@ contract RewardDistribution is HederaTokenService {
 
     function unstakeTokens(uint64 amount) external {
         require(staked[msg.sender] >= amount, "Cannot unstake more than staked amount");
-        claimRewards();
+        if (staked[msg.sender] > 0) {
+            claimRewards();
+        }
         staked[msg.sender] = staked[msg.sender].sub(amount);
         totalStaked = totalStaked.sub(amount);
         int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
@@ -95,7 +97,9 @@ contract RewardDistribution is HederaTokenService {
     function unstakeAllTokens() external {
         uint64 amount = staked[msg.sender];
         require(amount > 0, "No tokens to unstake");
-        claimRewards();
+        if (staked[msg.sender] > 0) {
+            claimRewards();
+        }
         staked[msg.sender] = 0;
         totalStaked = totalStaked.sub(amount);
         int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
@@ -113,20 +117,22 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function claimRewards() public {
-        updateReward(msg.sender);
-        uint64 reward = rewards[msg.sender];
-        emit DebugUint64("Reward to claim for user:", reward);
-        emit DebugAddress("User claiming reward:", msg.sender);
+        if (staked[msg.sender] > 0) {
+            updateReward(msg.sender);
+            uint64 reward = rewards[msg.sender];
+            emit DebugUint64("Reward to claim for user:", reward);
+            emit DebugAddress("User claiming reward:", msg.sender);
 
-        if (reward > 0) {
-            rewards[msg.sender] = 0; // Set to zero before transfer
-            int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, msg.sender, int64(reward));
-            if (response != HederaResponseCodes.SUCCESS) {
-                rewards[msg.sender] = reward; // Revert back on failure
-                revert("Claim Rewards Failed");
+            if (reward > 0) {
+                rewards[msg.sender] = 0; // Set to zero before transfer
+                int response = HederaTokenService.transferToken(mptTokenAddress, treasuryAddress, msg.sender, int64(reward));
+                if (response != HederaResponseCodes.SUCCESS) {
+                    rewards[msg.sender] = reward; // Revert back on failure
+                    revert("Claim Rewards Failed");
+                }
+                totalRewardPool = totalRewardPool.sub(reward); // Update reward pool
+                emit RewardClaimed(msg.sender, reward);
             }
-            totalRewardPool = totalRewardPool.sub(reward); // Update reward pool
-            emit RewardClaimed(msg.sender, reward);
         }
     }
 
@@ -167,7 +173,9 @@ contract RewardDistribution is HederaTokenService {
     }
 
     function stakeTokens(uint64 amount) external {
-        claimRewards(); // Claim rewards before staking
+        if (staked[msg.sender] > 0) {
+            claimRewards(); // Claim rewards before staking if user already has staked tokens
+        }
         int response = HederaTokenService.transferToken(mstTokenAddress, msg.sender, treasuryAddress, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Stake Failed");
@@ -176,8 +184,8 @@ contract RewardDistribution is HederaTokenService {
             stakers.push(msg.sender);
         }
         staked[msg.sender] = staked[msg.sender].add(amount);
-        lastCumulativeRewardPerToken[msg.sender] = cumulativeRewardPerToken; // Update last cumulative reward per token for the user
         totalStaked = totalStaked.add(amount);
+        lastCumulativeRewardPerToken[msg.sender] = cumulativeRewardPerToken; // Update last cumulative reward per token for the user
         emit Staked(msg.sender, amount);
     }
 
@@ -185,7 +193,12 @@ contract RewardDistribution is HederaTokenService {
         return staked[user];
     }
 
-    function getRewards(address user) external view returns (uint64) {
+    function getMyReward() external view returns (uint64) {
+        address user = msg.sender;
+        if (staked[user] > 0) {
+            uint64 rewardDelta = cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user]).mul(staked[user]);
+            return rewards[user].add(rewardDelta.div(1e6)); // Adjusting for decimal precision
+        }
         return rewards[user];
     }
 
@@ -195,15 +208,6 @@ contract RewardDistribution is HederaTokenService {
 
     function getCumulativeRewardPerToken() external view returns (uint64) {
         return cumulativeRewardPerToken;
-    }
-
-    function getMyReward() external view returns (uint64) {
-        address user = msg.sender;
-        if (staked[user] > 0) {
-            uint64 rewardDelta = cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user]).mul(staked[user]);
-            return rewards[user].add(rewardDelta.div(1e6)); // Adjusting for decimal precision
-        }
-        return 0;
     }
 
     function getLastCumulativeRewardPerToken(address user) external view returns (uint64) {

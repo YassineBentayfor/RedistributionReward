@@ -5,24 +5,55 @@ pragma experimental ABIEncoderV2;
 import "./HederaTokenService.sol";
 import "./HederaResponseCodes.sol";
 
+library SafeMath {
+    function add(uint64 a, uint64 b) internal pure returns (uint64) {
+        uint64 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+        return c;
+    }
+
+    function sub(uint64 a, uint64 b) internal pure returns (uint64) {
+        require(b <= a, "SafeMath: subtraction overflow");
+        uint64 c = a - b;
+        return c;
+    }
+
+    function mul(uint64 a, uint64 b) internal pure returns (uint64) {
+        if (a == 0) {
+            return 0;
+        }
+        uint64 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+        return c;
+    }
+
+    function div(uint64 a, uint64 b) internal pure returns (uint64) {
+        require(b > 0, "SafeMath: division by zero");
+        uint64 c = a / b;
+        return c;
+    }
+}
+
 contract RewardDistribution is HederaTokenService {
+    using SafeMath for uint64;
+
     address public mstTokenAddress;
     address public mptTokenAddress;
     address public treasuryAddress;
 
     mapping(address => uint64) public staked;
     mapping(address => uint64) public rewards;
-    mapping(address => uint256) public lastCumulativeRewardPerToken;
+    mapping(address => uint64) public lastCumulativeRewardPerToken;
     address[] public stakers;
     uint64 public totalStaked;
-    uint256 public cumulativeRewardPerToken;
+    uint64 public cumulativeRewardPerToken;
     uint64 public totalRewardPool;
 
     event Staked(address indexed user, uint64 amount);
     event Unstaked(address indexed user, uint64 amount);
     event RewardClaimed(address indexed user, uint64 reward);
     event TransactionProcessed(address indexed sender, uint64 amount);
-    event Debug(string message, uint256 value);
+    event Debug(string message, uint64 value);
     event DebugAddress(string message, address value);
     event DebugUint64(string message, uint64 value);
 
@@ -45,8 +76,8 @@ contract RewardDistribution is HederaTokenService {
         if (staked[msg.sender] > 0) {
             claimRewards();
         }
-        staked[msg.sender] -= amount;
-        totalStaked -= amount;
+        staked[msg.sender] = uint64(staked[msg.sender].sub(amount));
+        totalStaked = uint64(totalStaked).sub(amount);
         int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Unstake Failed");
@@ -70,7 +101,7 @@ contract RewardDistribution is HederaTokenService {
             claimRewards();
         }
         staked[msg.sender] = 0;
-        totalStaked -= amount;
+        totalStaked = uint64(totalStaked).sub(amount);
         int response = HederaTokenService.transferToken(mstTokenAddress, treasuryAddress, msg.sender, int64(amount));
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Unstake Failed");
@@ -98,7 +129,7 @@ contract RewardDistribution is HederaTokenService {
                 rewards[msg.sender] = reward; // Revert back on failure
                 revert("Claim Rewards Failed");
             }
-            totalRewardPool -= reward; // Update reward pool
+            totalRewardPool = uint64(totalRewardPool).sub(reward); // Update reward pool
             emit RewardClaimed(msg.sender, reward);
         }
     }
@@ -108,11 +139,11 @@ contract RewardDistribution is HederaTokenService {
         emit DebugUint64("Staked amount for user:", staked[user]);
 
         if (staked[user] > 0) {
-            uint256 rewardDelta = (cumulativeRewardPerToken - lastCumulativeRewardPerToken[user]) * staked[user];
+            uint64 rewardDelta = cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user]).mul(staked[user]);
             emit Debug("Reward Delta:", rewardDelta);
 
             if (rewardDelta > 0) { // Check if rewardDelta is positive
-                rewards[user] += uint64(rewardDelta / 1e12); // Adjusting for decimal precision
+                rewards[user] = uint64(uint64(rewards[user]).add(rewardDelta.div(1e6))); // Adjusting for decimal precision
                 emit DebugUint64("Updated Rewards:", rewards[user]);
             }
         }
@@ -122,8 +153,8 @@ contract RewardDistribution is HederaTokenService {
     function addReward(uint64 amount) internal {
         emit DebugUint64("Total staked before add reward:", totalStaked);
         if (totalStaked > 0) { // Check to avoid division by zero
-            cumulativeRewardPerToken += (amount * 1e12) / totalStaked; // Adjusting for decimal precision
-            totalRewardPool += amount;
+            cumulativeRewardPerToken = cumulativeRewardPerToken.add((amount.mul(1e6)).div(totalStaked)); // Adjusting for decimal precision
+            totalRewardPool = totalRewardPool.add(amount);
             emit Debug("New Cumulative Reward Per Token:", cumulativeRewardPerToken);
             emit DebugUint64("Total Reward Pool:", totalRewardPool);
         }
@@ -134,8 +165,8 @@ contract RewardDistribution is HederaTokenService {
         if (response != HederaResponseCodes.SUCCESS) {
             revert("Transfer MPT Failed");
         }
-        uint64 reward = amount / 10; // Assuming a 10% reward is added to the pool
-        addReward(reward);
+        uint64 reward = amount.div(10); // Assuming a 10% reward is added to the pool
+        addReward(uint64(reward));
         emit TransactionProcessed(msg.sender, amount);
     }
 
@@ -150,8 +181,8 @@ contract RewardDistribution is HederaTokenService {
         if (staked[msg.sender] == 0) {
             stakers.push(msg.sender);
         }
-        staked[msg.sender] += amount;
-        totalStaked += amount;
+        staked[msg.sender] = uint64(uint64(staked[msg.sender]).add(amount));
+        totalStaked = uint64(totalStaked).add(amount);
         emit Staked(msg.sender, amount);
     }
 
@@ -167,16 +198,20 @@ contract RewardDistribution is HederaTokenService {
         return totalRewardPool;
     }
 
-    function getCumulativeRewardPerToken() external view returns (uint256) {
+    function getCumulativeRewardPerToken() external view returns (uint64) {
         return cumulativeRewardPerToken;
     }
 
     function getMyReward() external view returns (uint64) {
         address user = msg.sender;
         if (staked[user] > 0) {
-            uint256 rewardDelta = (cumulativeRewardPerToken - lastCumulativeRewardPerToken[user]) * staked[user];
-            return uint64(rewardDelta / 1e12); // Adjusting for decimal precision
+            uint64 rewardDelta = cumulativeRewardPerToken.sub(lastCumulativeRewardPerToken[user]).mul(staked[user]);
+            return uint64(rewardDelta.div(1e6)); // Adjusting for decimal precision
         }
         return 0;
+    }
+
+    function getLastCumulativeRewardPerToken(address user) external view returns (uint64) {
+        return lastCumulativeRewardPerToken[user];
     }
 }
