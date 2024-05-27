@@ -13,6 +13,8 @@ const axios = require("axios");
 const baseUrl = "https://testnet.mirrornode.hedera.com/api/v1";
 const contractId = process.env.REWARD_DISTRIBUTION_CONTRACT_ID;
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function queryMirrorNodeFor(url) {
   try {
     const response = await axios.get(url);
@@ -120,7 +122,7 @@ async function getLastCumulativeRewardPerToken(client, contractId, account) {
     const transactionId = await query.execute(client);
     const record = await transactionId.getRecord(client);
     const result = record.contractFunctionResult;
-    const lastCumulativeRewardPerToken = result.getUint256(0).toString();
+    const lastCumulativeRewardPerToken = result.getUint64(0).toString(); // Changed to getUint64
     return lastCumulativeRewardPerToken;
   } catch (error) {
     console.error(
@@ -140,7 +142,7 @@ async function getCumulativeRewardPerToken(client, contractId) {
     const transactionId = await query.execute(client);
     const record = await transactionId.getRecord(client);
     const result = record.contractFunctionResult;
-    const cumulativeRewardPerToken = result.getUint256(0).toString();
+    const cumulativeRewardPerToken = result.getUint64(0).toString(); // Changed to getUint64
     return cumulativeRewardPerToken;
   } catch (error) {
     console.error(
@@ -283,6 +285,7 @@ async function main() {
       console.log(
         `- Tokens staked by Account 1 using stakeTokens function: ${stakeTxReceipt1.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during staking of 4000 MST by Account 1 using stakeTokens function:",
@@ -304,6 +307,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after staking for Account 1:",
@@ -327,6 +331,7 @@ async function main() {
       console.log(
         `- Tokens staked by Account 2 using stakeTokens function: ${stakeTxReceipt2.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during staking of 4000 MST by Account 2 using stakeTokens function:",
@@ -353,6 +358,7 @@ async function main() {
       console.log(
         `- Tokens transferred by Account 2 to Account 3 using transferMptTokens function: ${transferMptTxReceipt2.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during transfer of 4000 MPT by Account 2 to Account 3 using transferMptTokens function:",
@@ -398,6 +404,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after staking and transfer:",
@@ -421,6 +428,7 @@ async function main() {
       console.log(
         `- Tokens staked by Account 3 using stakeTokens function: ${stakeTxReceipt3.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during staking of 4000 MST by Account 3 using stakeTokens function:",
@@ -447,6 +455,7 @@ async function main() {
       console.log(
         `- Tokens transferred by Account 3 to Account 1 using transferMptTokens function: ${transferMptTxReceipt3.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during transfer of 2000 MPT by Account 3 to Account 1 using transferMptTokens function:",
@@ -473,6 +482,7 @@ async function main() {
       console.log(
         `- Tokens transferred by Account 3 to Account 2 using transferMptTokens function: ${transferMptTxReceipt4.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during transfer of 2000 MPT by Account 3 to Account 2 using transferMptTokens function:",
@@ -518,6 +528,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after staking and transfer:",
@@ -553,6 +564,7 @@ async function main() {
 
       console.log("Claiming rewards for Account 1...");
       await claimRewards(client1);
+      await delay(5000); // 5-second delay
       console.log(
         "Stakes and rewards for Account 1:",
         await getStakesAndRewards(
@@ -577,6 +589,7 @@ async function main() {
 
       console.log("Claiming rewards for Account 2...");
       await claimRewards(client2);
+      await delay(5000); // 5-second delay
       console.log(
         "Stakes and rewards for Account 2:",
         await getStakesAndRewards(
@@ -601,6 +614,7 @@ async function main() {
 
       console.log("Claiming rewards for Account 3...");
       await claimRewards(client3);
+      await delay(5000); // 5-second delay
       console.log(
         "Stakes and rewards for Account 3:",
         await getStakesAndRewards(
@@ -629,6 +643,7 @@ async function main() {
       console.log(
         `- Tokens unstaked by Account 1 using unstakeTokens function: ${unstakeTxReceipt1.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during unstaking of 4000 MST by Account 1 using unstakeTokens function:",
@@ -650,6 +665,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after unstaking for Account 1:",
@@ -673,6 +689,7 @@ async function main() {
       console.log(
         `- Tokens unstaked by Account 2 using unstakeTokens function: ${unstakeTxReceipt2.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during unstaking of 4000 MST by Account 2 using unstakeTokens function:",
@@ -694,6 +711,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after unstaking for Account 2:",
@@ -717,6 +735,7 @@ async function main() {
       console.log(
         `- Tokens unstaked by Account 3 using unstakeTokens function: ${unstakeTxReceipt3.status.toString()}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error during unstaking of 4000 MST by Account 3 using unstakeTokens function:",
@@ -738,6 +757,7 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
+      await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
         "Error logging balances after unstaking for Account 3:",
