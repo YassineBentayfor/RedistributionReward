@@ -41,7 +41,7 @@ async function getTokenBalance(accountId, tokenId) {
               if (tokenInfo && tokenInfo.decimals !== undefined) {
                 const decimals = parseFloat(tokenInfo.decimals);
                 const balance = token.balance / 10 ** decimals;
-                return balance * 10000; // Adjust as necessary
+                return Math.floor(balance * 10000); // Adjust as necessary
               }
             }
           }
@@ -193,6 +193,14 @@ async function main() {
   const client3 = Client.forTestnet().setOperator(account3Id, account3Key);
 
   try {
+    // Initialize the reward pool
+    const initialRewardPool = await getRewardPool(client, contractId);
+    console.log(`Initial Reward Pool: ${initialRewardPool}`);
+
+    // Reset the reward pool to 0
+    // This part would actually involve contract logic to reset the pool, which isn't shown here
+    // For demonstration, we assume the reward pool is reset
+
     // Log initial balances
     console.log("Balances at the beginning:");
     try {
@@ -240,7 +248,6 @@ async function main() {
     console.log("Initial stakes and rewards:");
     try {
       console.log("Reward Pool:", await getRewardPool(client, contractId));
-
       console.log(
         "Account 1:",
         await getStakesAndRewards(
@@ -293,29 +300,91 @@ async function main() {
       );
     }
 
-    console.log("Balances after staking:");
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 1 after staking:");
     try {
-      console.log(
-        `Account 1 MST: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
+      const { stakes, rewards } = await getStakesAndRewards(
+        client1,
+        contractId,
+        process.env.ACCOUNT1_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client1,
+        contractId,
+        process.env.ACCOUNT1_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
       );
       console.log(
-        `Account 1 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
       );
       await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
-        "Error logging balances after staking for Account 1:",
+        "Error getting stakes and rewards for Account 1 after staking:",
         error
       );
     }
 
-    // Step 2: Account 2 stakes 4000 MST and then sends 4000 MPT to Account 3
+    // Step 2: Account 1 transfers 4000 MPT to Account 2
+    console.log("Account 1 -> Account 2: 4000 MPT");
+    try {
+      const transferMptTx1 = await new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(3000000)
+        .setFunction(
+          "transferMptTokens",
+          new ContractFunctionParameters()
+            .addUint64(4000)
+            .addAddress(process.env.ACCOUNT2_ADDRESS_ETHER)
+        )
+        .setMaxTransactionFee(new Hbar(20));
+      const transferMptTxSubmit1 = await transferMptTx1.execute(client1);
+      const transferMptTxReceipt1 = await transferMptTxSubmit1.getReceipt(
+        client1
+      );
+      console.log(
+        `- Tokens transferred by Account 1 to Account 2 using transferMptTokens function: ${transferMptTxReceipt1.status.toString()}`
+      );
+      await delay(5000); // 5-second delay
+    } catch (error) {
+      console.error(
+        "Error during transfer of 4000 MPT by Account 1 to Account 2 using transferMptTokens function:",
+        error
+      );
+    }
+
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 1 after transfer:");
+    try {
+      const { stakes, rewards } = await getStakesAndRewards(
+        client1,
+        contractId,
+        process.env.ACCOUNT1_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client1,
+        contractId,
+        process.env.ACCOUNT1_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
+      );
+      console.log(
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
+      );
+      await delay(5000); // 5-second delay
+    } catch (error) {
+      console.error(
+        "Error getting stakes and rewards for Account 1 after transfer:",
+        error
+      );
+    }
+
+    // Step 3: Account 2 stakes 4000 MST
     console.log("Account 2 staking 4000 MST...");
     try {
       const stakeTx2 = await new ContractExecuteTransaction()
@@ -339,7 +408,36 @@ async function main() {
       );
     }
 
-    console.log("Account 2 transferring 4000 MPT to Account 3...");
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 2 after staking:");
+    try {
+      const { stakes, rewards } = await getStakesAndRewards(
+        client2,
+        contractId,
+        process.env.ACCOUNT2_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client2,
+        contractId,
+        process.env.ACCOUNT2_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
+      );
+      console.log(
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
+      );
+      await delay(5000); // 5-second delay
+    } catch (error) {
+      console.error(
+        "Error getting stakes and rewards for Account 2 after staking:",
+        error
+      );
+    }
+
+    // Step 4: Account 2 transfers 4000 MPT to Account 3
+    console.log("Account 2 -> Account 3: 4000 MPT");
     try {
       const transferMptTx2 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -366,53 +464,63 @@ async function main() {
       );
     }
 
-    console.log("Balances after staking and transfer:");
+    // Adding another transfer of 4000 MPT to Account 1
+    console.log("Account 2 -> Account 1: 4000 MPT");
     try {
-      console.log(
-        `Account 1 MST: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
+      const transferMptTx4 = await new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(3000000)
+        .setFunction(
+          "transferMptTokens",
+          new ContractFunctionParameters()
+            .addUint64(4000)
+            .addAddress(process.env.ACCOUNT1_ADDRESS_ETHER)
+        )
+        .setMaxTransactionFee(new Hbar(20));
+      const transferMptTxSubmit4 = await transferMptTx4.execute(client2);
+      const transferMptTxReceipt4 = await transferMptTxSubmit4.getReceipt(
+        client2
       );
       console.log(
-        `Account 1 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 2 MST: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 2 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 3 MST: ${await getTokenBalance(
-          process.env.ACCOUNT3_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 3 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT3_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
+        `- Tokens transferred by Account 2 to Account 1 using transferMptTokens function: ${transferMptTxReceipt4.status.toString()}`
       );
       await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
-        "Error logging balances after staking and transfer:",
+        "Error during transfer of 4000 MPT by Account 2 to Account 1 using transferMptTokens function:",
         error
       );
     }
 
-    // Step 3: Account 3 stakes 4000 MST and then sends 2000 MPT to Account 1 and 2000 MPT to Account 2
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 2 after transfer:");
+    try {
+      const { stakes, rewards } = await getStakesAndRewards(
+        client2,
+        contractId,
+        process.env.ACCOUNT2_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client2,
+        contractId,
+        process.env.ACCOUNT2_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
+      );
+      console.log(
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
+      );
+      await delay(5000); // 5-second delay
+    } catch (error) {
+      console.error(
+        "Error getting stakes and rewards for Account 2 after transfer:",
+        error
+      );
+    }
+
+    // Step 5: Account 3 stakes 4000 MST
     console.log("Account 3 staking 4000 MST...");
     try {
       const stakeTx3 = await new ContractExecuteTransaction()
@@ -436,7 +544,36 @@ async function main() {
       );
     }
 
-    console.log("Account 3 transferring 2000 MPT to Account 1...");
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 3 after staking:");
+    try {
+      const { stakes, rewards } = await getStakesAndRewards(
+        client3,
+        contractId,
+        process.env.ACCOUNT3_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client3,
+        contractId,
+        process.env.ACCOUNT3_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
+      );
+      console.log(
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
+      );
+      await delay(5000); // 5-second delay
+    } catch (error) {
+      console.error(
+        "Error getting stakes and rewards for Account 3 after staking:",
+        error
+      );
+    }
+
+    // Step 6: Account 3 transfers 2000 MPT to Account 1 and 2000 MPT to Account 2
+    console.log("Account 3 -> Account 1: 2000 MPT");
     try {
       const transferMptTx3 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -463,7 +600,7 @@ async function main() {
       );
     }
 
-    console.log("Account 3 transferring 2000 MPT to Account 2...");
+    console.log("Account 3 -> Account 2: 2000 MPT");
     try {
       const transferMptTx4 = await new ContractExecuteTransaction()
         .setContractId(contractId)
@@ -490,83 +627,56 @@ async function main() {
       );
     }
 
-    console.log("Balances after staking and transfer:");
+    // Call getStakesAndRewards and getCumulativeRewardPerToken
+    console.log("Stakes and rewards for Account 3 after transfers:");
     try {
-      console.log(
-        `Account 1 MST: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
+      const { stakes, rewards } = await getStakesAndRewards(
+        client3,
+        contractId,
+        process.env.ACCOUNT3_ADDRESS_ETHER
+      );
+      const lastCumulative = await getLastCumulativeRewardPerToken(
+        client3,
+        contractId,
+        process.env.ACCOUNT3_ADDRESS_ETHER
+      );
+      const currentCumulative = await getCumulativeRewardPerToken(
+        client,
+        contractId
       );
       console.log(
-        `Account 1 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 2 MST: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 2 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 3 MST: ${await getTokenBalance(
-          process.env.ACCOUNT3_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 3 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT3_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
+        `Stakes: ${stakes}, Rewards: ${rewards}, Last Cumulative: ${lastCumulative}, Current Cumulative: ${currentCumulative}`
       );
       await delay(5000); // 5-second delay
     } catch (error) {
       console.error(
-        "Error logging balances after staking and transfer:",
+        "Error getting stakes and rewards for Account 3 after transfers:",
         error
       );
     }
 
     // Claim rewards before unstaking
     try {
-      console.log("Reward Pool:", await getRewardPool(client, contractId));
+      const currentRewardPool = await getRewardPool(client, contractId);
+      console.log(
+        "Reward Pool before claiming:",
+        currentRewardPool - initialRewardPool
+      );
 
       console.log(
-        "Stakes and rewards before claiming:",
+        "Stakes and rewards for Account 1 before claiming:",
         await getStakesAndRewards(
           client1,
           contractId,
           process.env.ACCOUNT1_ADDRESS_ETHER
         )
-      );
-
-      console.log(
-        "Last cumulative reward per token for Account 1:",
-        await getLastCumulativeRewardPerToken(
-          client1,
-          contractId,
-          process.env.ACCOUNT1_ADDRESS_ETHER
-        )
-      );
-      console.log(
-        "Current cumulative reward per token for Account 1:",
-        await getCumulativeRewardPerToken(client, contractId)
       );
 
       console.log("Claiming rewards for Account 1...");
       await claimRewards(client1);
       await delay(5000); // 5-second delay
       console.log(
-        "Stakes and rewards for Account 1:",
+        "Stakes and rewards for Account 1 after claiming:",
         await getStakesAndRewards(
           client1,
           contractId,
@@ -575,23 +685,19 @@ async function main() {
       );
 
       console.log(
-        "Last cumulative reward per token for Account 2:",
-        await getLastCumulativeRewardPerToken(
+        "Stakes and rewards for Account 2 before claiming:",
+        await getStakesAndRewards(
           client2,
           contractId,
           process.env.ACCOUNT2_ADDRESS_ETHER
         )
-      );
-      console.log(
-        "Current cumulative reward per token for Account 2:",
-        await getCumulativeRewardPerToken(client, contractId)
       );
 
       console.log("Claiming rewards for Account 2...");
       await claimRewards(client2);
       await delay(5000); // 5-second delay
       console.log(
-        "Stakes and rewards for Account 2:",
+        "Stakes and rewards for Account 2 after claiming:",
         await getStakesAndRewards(
           client2,
           contractId,
@@ -600,34 +706,35 @@ async function main() {
       );
 
       console.log(
-        "Last cumulative reward per token for Account 3:",
-        await getLastCumulativeRewardPerToken(
-          client3,
-          contractId,
-          process.env.ACCOUNT3_ADDRESS_ETHER
-        )
-      );
-      console.log(
-        "Current cumulative reward per token for Account 3:",
-        await getCumulativeRewardPerToken(client, contractId)
-      );
-
-      console.log("Claiming rewards for Account 3...");
-      await claimRewards(client3);
-      await delay(5000); // 5-second delay
-      console.log(
-        "Stakes and rewards for Account 3:",
+        "Stakes and rewards for Account 3 before claiming:",
         await getStakesAndRewards(
           client3,
           contractId,
           process.env.ACCOUNT3_ADDRESS_ETHER
         )
       );
+
+      console.log("Claiming rewards for Account 3...");
+      await claimRewards(client3);
+      await delay(5000); // 5-second delay
+      console.log(
+        "Stakes and rewards for Account 3 after claiming:",
+        await getStakesAndRewards(
+          client3,
+          contractId,
+          process.env.ACCOUNT3_ADDRESS_ETHER
+        )
+      );
+
+      console.log(
+        "Reward Pool after claiming:",
+        (await getRewardPool(client, contractId)) - initialRewardPool
+      );
     } catch (error) {
       console.error("Error claiming rewards:", error);
     }
 
-    // Step 4: Account 1 unstakes 4000 MST
+    // Step 7: Account 1 unstakes 4000 MST
     console.log("Account 1 unstaking 4000 MST...");
     try {
       const unstakeTx1 = await new ContractExecuteTransaction()
@@ -651,29 +758,7 @@ async function main() {
       );
     }
 
-    console.log("Balances after unstaking:");
-    try {
-      console.log(
-        `Account 1 MST: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 1 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT1_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      await delay(5000); // 5-second delay
-    } catch (error) {
-      console.error(
-        "Error logging balances after unstaking for Account 1:",
-        error
-      );
-    }
-
-    // Step 5: Account 2 unstakes 4000 MST
+    // Step 8: Account 2 unstakes 4000 MST
     console.log("Account 2 unstaking 4000 MST...");
     try {
       const unstakeTx2 = await new ContractExecuteTransaction()
@@ -697,29 +782,7 @@ async function main() {
       );
     }
 
-    console.log("Balances after unstaking:");
-    try {
-      console.log(
-        `Account 2 MST: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MST_TOKEN_ADDRESS
-        )}`
-      );
-      console.log(
-        `Account 2 MPT: ${await getTokenBalance(
-          process.env.ACCOUNT2_ID,
-          process.env.MPT_TOKEN_ADDRESS
-        )}`
-      );
-      await delay(5000); // 5-second delay
-    } catch (error) {
-      console.error(
-        "Error logging balances after unstaking for Account 2:",
-        error
-      );
-    }
-
-    // Step 6: Account 3 unstakes 4000 MST
+    // Step 9: Account 3 unstakes 4000 MST
     console.log("Account 3 unstaking 4000 MST...");
     try {
       const unstakeTx3 = await new ContractExecuteTransaction()
@@ -743,8 +806,32 @@ async function main() {
       );
     }
 
-    console.log("Balances after unstaking:");
+    console.log("Balances after all transactions:");
     try {
+      console.log(
+        `Account 1 MST: ${await getTokenBalance(
+          process.env.ACCOUNT1_ID,
+          process.env.MST_TOKEN_ADDRESS
+        )}`
+      );
+      console.log(
+        `Account 1 MPT: ${await getTokenBalance(
+          process.env.ACCOUNT1_ID,
+          process.env.MPT_TOKEN_ADDRESS
+        )}`
+      );
+      console.log(
+        `Account 2 MST: ${await getTokenBalance(
+          process.env.ACCOUNT2_ID,
+          process.env.MST_TOKEN_ADDRESS
+        )}`
+      );
+      console.log(
+        `Account 2 MPT: ${await getTokenBalance(
+          process.env.ACCOUNT2_ID,
+          process.env.MPT_TOKEN_ADDRESS
+        )}`
+      );
       console.log(
         `Account 3 MST: ${await getTokenBalance(
           process.env.ACCOUNT3_ID,
@@ -757,15 +844,14 @@ async function main() {
           process.env.MPT_TOKEN_ADDRESS
         )}`
       );
-      await delay(5000); // 5-second delay
     } catch (error) {
-      console.error(
-        "Error logging balances after unstaking for Account 3:",
-        error
-      );
+      console.error("Error logging balances after all transactions:", error);
     }
 
-    console.log("Reward Pool:", await getRewardPool(client, contractId));
+    console.log(
+      "Reward Pool:",
+      (await getRewardPool(client, contractId)) - initialRewardPool
+    );
 
     console.log("All transactions executed successfully.");
   } catch (error) {
